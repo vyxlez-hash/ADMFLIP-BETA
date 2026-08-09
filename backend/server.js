@@ -59,14 +59,9 @@ const ROBLOX_RATE_WINDOW = 60 * 1000;
 
 app.use(
   cors({
-    origin(origin, callback) {
-      // Allow same-origin / curl / no-origin requests
-      // and every origin in the allowlist (env-driven)
-      if (!origin || FRONTEND_ORIGIN.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, false);
-    },
+    // Pass the ARRAY directly. cors echoes back the exact
+    // matching origin, which works with credentials: true.
+    origin: FRONTEND_ORIGIN,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
@@ -79,7 +74,6 @@ app.use(
     maxAge: 86400
   })
 );
-
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
