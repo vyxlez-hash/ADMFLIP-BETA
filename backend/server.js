@@ -1617,19 +1617,18 @@ if (!db.chatMessages.some((m) => m.id === "welcome")) {
   });
 }
 
-/* =========================================================
-   TELEGRAM BOT
-========================================================= */
-
 if (process.env.TELEGRAM_BOT_TOKEN) {
+  console.log("[TELEGRAM] Starting bot...");
+
   try {
     require("./bot.js");
-    console.log("[TELEGRAM] Bot module loaded.");
+    console.log("[TELEGRAM] bot.js loaded.");
   } catch (error) {
-    console.error("[TELEGRAM] Failed to load bot:", error);
+    console.error("[TELEGRAM] Could not load bot.js:", error);
   }
+} else {
+  console.log("[TELEGRAM] TELEGRAM_BOT_TOKEN is missing.");
 }
-
 persistNow();
 
 app.listen(PORT, "0.0.0.0", () => {
