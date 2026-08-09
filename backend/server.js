@@ -77,6 +77,35 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+app.get("/test-roblox", async (req, res) => {
+  try {
+    const response = await fetch("https://users.roblox.com/v1/users/1", {
+      headers: {
+        "User-Agent": "ADMFLIP/1.0",
+        "Accept": "application/json"
+      }
+    });
+
+    const text = await response.text();
+
+    res.json({
+      success: true,
+      status: response.status,
+      ok: response.ok,
+      response: text.slice(0, 1000)
+    });
+  } catch (error) {
+    console.error("ROBLOX TEST ERROR:", error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      name: error.name,
+      cause: error.cause ? String(error.cause) : null
+    });
+  }
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
 
