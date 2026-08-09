@@ -1,8 +1,9 @@
 "use strict";
 
 /* =========================================================
-   ADMFLIP BACKEND — v2.0
-   - Env-based CORS allowlist (fixes "backend cannot be reached")
+   ADMFLIP BACKEND — v2.1
+   - Fresh (uncached) Roblox bio reads during verification
+   - Env-based CORS allowlist
    - JSON-file persistence (survives restarts AND redeploys)
    - Roblox response caching + per-IP rate limiting
    - Optional static frontend serving (backend/public)
@@ -74,6 +75,7 @@ app.use(
     maxAge: 86400
   })
 );
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -334,14 +336,16 @@ function createOrUpdateUser(data) {
 }
 
 /* ---------------------------------------------------------
-   ROBLOX (cached + timed out)
+   ROBLOX (cached + timed out, with fresh bypass)
 --------------------------------------------------------- */
 
 const robloxCache = new Map();
 
-async function withCache(key, ttlMs, fetcher) {
-  const hit = robloxCache.get(key);
-  if (hit && hit.expires > Date.now()) return hit.value;
+async function withCache(key, ttlMs, fetcher, fresh = false) {
+  if (!fresh) {
+    const hit = robloxCache.get(key);
+    if (hit && hit.expires > Date.now()) return hit.value;
+  }
 
   const value = await fetcher();
   robloxCache.set(key, { value, expires: Date.now() + ttlMs });
@@ -370,7 +374,7 @@ async function robloxFetch(url, options = {}) {
   }
 }
 
-async function findRobloxUser(username) {
+async function findRobloxUser(username, fresh = false) {
   const cleanUsername = clean(username);
   if (!cleanUsername) return null;
 
@@ -406,21 +410,27 @@ async function findRobloxUser(username) {
         found[0] ||
         null
       );
-    }
+    },
+    fresh
   );
 }
 
-async function findRobloxProfile(id) {
-  return withCache("profile:" + String(id), ROBLOX_CACHE_TTL, async () => {
-    const response = await robloxFetch(
-      "https://users.roblox.com/v1/users/" +
-        encodeURIComponent(String(id))
-    );
-    if (!response.ok) {
-      throw new Error(`Roblox profile returned ${response.status}`);
-    }
-    return response.json();
-  });
+async function findRobloxProfile(id, fresh = false) {
+  return withCache(
+    "profile:" + String(id),
+    ROBLOX_CACHE_TTL,
+    async () => {
+      const response = await robloxFetch(
+        "https://users.roblox.com/v1/users/" +
+          encodeURIComponent(String(id))
+      );
+      if (!response.ok) {
+        throw new Error(`Roblox profile returned ${response.status}`);
+      }
+      return response.json();
+    },
+    fresh
+  );
 }
 
 async function findRobloxAvatar(id) {
@@ -452,7 +462,7 @@ app.get("/health", (req, res) => {
   res.json({
     success: true,
     server: "online",
-    version: "2.0.0",
+    version: "2.1.0",
     pets: getPets().length,
     valuesFile: VALUES_FILE,
     dataFile: DB_FILE,
@@ -610,7 +620,8 @@ async function verifyRobloxBio(req, res) {
       });
     }
 
-    const robloxUser = await findRobloxUser(username);
+    // fresh=true -> ALWAYS hit Roblox, never serve a 10-min-old cached bio
+    const robloxUser = await findRobloxUser(username, true);
     if (!robloxUser) {
       return res.status(404).json({
         success: false,
@@ -618,8 +629,15 @@ async function verifyRobloxBio(req, res) {
       });
     }
 
-    const profile = await findRobloxProfile(robloxUser.id);
+    const profile = await findRobloxProfile(robloxUser.id, true);
     const description = clean(profile?.description);
+
+    // Log what Roblox actually returned, so you can debug in Deploy Logs
+    console.log(
+      `Verification check for ${robloxUser.name}: ` +
+        `bio length ${description.length} | ` +
+        JSON.stringify(description.slice(0, 120))
+    );
 
     if (!description.toLowerCase().includes(phrase.toLowerCase())) {
       return res.json({
@@ -989,7 +1007,7 @@ app.get("/api", (req, res) => {
   res.json({
     success: true,
     name: "ADMFLIP API",
-    version: "2.0.0",
+    version: "2.1.0",
     cors: FRONTEND_ORIGIN,
     endpoints: [
       "GET  /health",
@@ -1078,7 +1096,7 @@ persistNow(); // ensure data dir exists on first boot
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log("========================================");
-  console.log("ADMFLIP backend v2.0 started");
+  console.log("ADMFLIP backend v2.1 started");
   console.log("Port:", PORT);
   console.log("Values:", VALUES_FILE);
   console.log("Pets loaded:", getPets().length);
