@@ -1,6 +1,12 @@
 "use strict";
 
 const express = require("express");
+const cors = require("cors");
+
+app.use(cors({
+  origin: "https://admflip-beta.vyxlez.workers.dev",
+  credentials: true
+}));
 const fs = require("fs");
 const path = require("path");
 
