@@ -1,7 +1,7 @@
 {
   "name": "admflip-backend",
-  "version": "3.0.0",
-  "description": "ADMFLIP API backend",
+  "version": "2.0.0",
+  "description": "ADMFLIP API backend (Roblox verification, pet values, coinflips, chat)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
