@@ -1,15 +1,36 @@
 "use strict";
 
+/*
+=========================================================
+ADMFLIP BACKEND — v3.0 SUPABASE
+
+Preserves the existing ADMFLIP API.
+
+- Roblox username lookup
+- Fresh Roblox bio verification
+- Roblox avatar lookup
+- Supabase users
+- Supabase inventory
+- Supabase coinflips
+- Supabase chat
+- values.txt pet values
+- CORS allowlist
+- Rate limiting
+- Existing frontend endpoints
+=========================================================
+*/
+
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 
 /* =========================================================
-   CONFIG
-   ========================================================= */
+CONFIG
+========================================================= */
 
 const PORT = Number(process.env.PORT) || 10000;
 
@@ -20,13 +41,6 @@ const FRONTEND_ORIGIN = (
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-
-const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/+$/, "");
-
-const SUPABASE_KEY =
-  process.env.SUPABASE_SECRET_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "";
 
 const VALUES_FILE =
   process.env.VALUES_FILE ||
@@ -48,19 +62,42 @@ const AVATAR_CACHE_TTL = 60 * 60 * 1000;
 const ROBLOX_RATE_MAX = 20;
 const ROBLOX_RATE_WINDOW = 60 * 1000;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("=================================================");
+/* =========================================================
+SUPABASE
+========================================================= */
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error(
+    "========================================================="
+  );
   console.error("SUPABASE CONFIGURATION ERROR");
-  console.error("Missing SUPABASE_URL or SUPABASE_SECRET_KEY");
-  console.error("Add them in Railway Variables.");
-  console.error("=================================================");
+  console.error(
+    "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required."
+  );
+  console.error(
+    "========================================================="
+  );
+  process.exit(1);
 }
 
-/* =========================================================
-   MIDDLEWARE
-   ========================================================= */
+const supabase = createClient(
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 
-app.set("trust proxy", 1);
+/* =========================================================
+MIDDLEWARE
+========================================================= */
 
 app.use(
   cors({
@@ -101,8 +138,8 @@ app.use((req, res, next) => {
 });
 
 /* =========================================================
-   HELPERS
-   ========================================================= */
+HELPERS
+========================================================= */
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -135,80 +172,8 @@ function petImage(name) {
 }
 
 /* =========================================================
-   SUPABASE REST CLIENT
-   ========================================================= */
-
-async function supabaseRequest(
-  table,
-  options = {}
-) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error("Supabase is not configured.");
-  }
-
-  const {
-    method = "GET",
-    query = "",
-    body,
-    prefer
-  } = options;
-
-  const url =
-    `${SUPABASE_URL}/rest/v1/${table}` +
-    (query ? `?${query}` : "");
-
-  const headers = {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${SUPABASE_KEY}`,
-    "Content-Type": "application/json"
-  };
-
-  if (prefer) {
-    headers.Prefer = prefer;
-  }
-
-  const response = await fetch(url, {
-    method,
-    headers,
-    body:
-      body !== undefined
-        ? JSON.stringify(body)
-        : undefined
-  });
-
-  const text = await response.text();
-
-  let data = null;
-
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-
-  if (!response.ok) {
-    console.error(
-      "Supabase error:",
-      response.status,
-      data
-    );
-
-    const message =
-      data?.message ||
-      data?.error_description ||
-      data?.hint ||
-      data?.details ||
-      "Supabase request failed.";
-
-    throw new Error(message);
-  }
-
-  return data;
-}
-
-/* =========================================================
-   PET VALUES
-   ========================================================= */
+PET VALUES
+========================================================= */
 
 function loadPets() {
   if (!fs.existsSync(VALUES_FILE)) {
@@ -217,10 +182,7 @@ function loadPets() {
   }
 
   try {
-    const text = fs.readFileSync(
-      VALUES_FILE,
-      "utf8"
-    );
+    const text = fs.readFileSync(VALUES_FILE, "utf8");
 
     const lines = text
       .split(/\r?\n/)
@@ -274,17 +236,11 @@ function loadPets() {
       i = valueIndex;
     }
 
-    console.log(
-      `Loaded ${result.length} pets from values.txt`
-    );
+    console.log(`Loaded ${result.length} pets from values.txt`);
 
     return result;
   } catch (error) {
-    console.error(
-      "Could not read values.txt:",
-      error
-    );
-
+    console.error("Could not read values.txt:", error);
     return [];
   }
 }
@@ -312,8 +268,8 @@ function getPets() {
 }
 
 /* =========================================================
-   RATE LIMITER
-   ========================================================= */
+RATE LIMITER
+========================================================= */
 
 const rateBuckets = new Map();
 
@@ -362,8 +318,8 @@ setInterval(() => {
 }, 10 * 60 * 1000).unref();
 
 /* =========================================================
-   ROBLOX
-   ========================================================= */
+ROBLOX CACHE
+========================================================= */
 
 const robloxCache = new Map();
 
@@ -376,10 +332,7 @@ async function withCache(
   if (!fresh) {
     const hit = robloxCache.get(key);
 
-    if (
-      hit &&
-      hit.expires > Date.now()
-    ) {
+    if (hit && hit.expires > Date.now()) {
       return hit.value;
     }
   }
@@ -394,10 +347,7 @@ async function withCache(
   return value;
 }
 
-async function robloxFetch(
-  url,
-  options = {}
-) {
+async function robloxFetch(url, options = {}) {
   const controller = new AbortController();
 
   const timeout = setTimeout(
@@ -408,11 +358,13 @@ async function robloxFetch(
   try {
     return await fetch(url, {
       ...options,
+
       headers: {
-        "User-Agent": "ADMFLIP/1.0",
+        "User-Agent": "ADMFLIP/3.0",
         Accept: "application/json",
         ...(options.headers || {})
       },
+
       signal: controller.signal
     });
   } finally {
@@ -431,27 +383,25 @@ async function findRobloxUser(
   }
 
   return withCache(
-    "user:" +
-      cleanUsername.toLowerCase(),
-
+    "user:" + cleanUsername.toLowerCase(),
     ROBLOX_CACHE_TTL,
 
     async () => {
-      const response =
-        await robloxFetch(
-          "https://users.roblox.com/v1/usernames/users",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json"
-            },
-            body: JSON.stringify({
-              usernames: [cleanUsername],
-              excludeBannedUsers: true
-            })
-          }
-        );
+      const response = await robloxFetch(
+        "https://users.roblox.com/v1/usernames/users",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            usernames: [cleanUsername],
+            excludeBannedUsers: true
+          })
+        }
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -459,13 +409,11 @@ async function findRobloxUser(
         );
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
-      const found =
-        Array.isArray(data?.data)
-          ? data.data
-          : [];
+      const found = Array.isArray(data?.data)
+        ? data.data
+        : [];
 
       return (
         found.find(
@@ -491,11 +439,10 @@ async function findRobloxProfile(
     ROBLOX_CACHE_TTL,
 
     async () => {
-      const response =
-        await robloxFetch(
-          "https://users.roblox.com/v1/users/" +
-            encodeURIComponent(String(id))
-        );
+      const response = await robloxFetch(
+        "https://users.roblox.com/v1/users/" +
+          encodeURIComponent(String(id))
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -517,24 +464,19 @@ async function findRobloxAvatar(id) {
       AVATAR_CACHE_TTL,
 
       async () => {
-        const response =
-          await robloxFetch(
-            "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=" +
-              encodeURIComponent(String(id)) +
-              "&size=150x150&format=Png&isCircular=false"
-          );
+        const response = await robloxFetch(
+          "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=" +
+            encodeURIComponent(String(id)) +
+            "&size=150x150&format=Png&isCircular=false"
+        );
 
         if (!response.ok) {
           return "";
         }
 
-        const data =
-          await response.json();
+        const data = await response.json();
 
-        return (
-          data?.data?.[0]?.imageUrl ||
-          ""
-        );
+        return data?.data?.[0]?.imageUrl || "";
       }
     );
   } catch {
@@ -543,44 +485,44 @@ async function findRobloxAvatar(id) {
 }
 
 /* =========================================================
-   USERS / SUPABASE
-   ========================================================= */
+SUPABASE USER HELPERS
+========================================================= */
 
-function dbUserToApi(user) {
-  if (!user) {
+function mapUser(row) {
+  if (!row) {
     return null;
   }
 
   return {
-    id: String(user.roblox_id),
-    robloxId: String(user.roblox_id),
-    username: user.username || "User",
-    avatar: user.avatar || "",
-    verified: Boolean(user.verified),
-    balance: numeric(user.balance),
-    wagered: numeric(user.wagered),
-    profit: numeric(user.profit),
-    coinflips: numeric(user.coinflips),
-    wins: numeric(user.wins),
-    inventory: Array.isArray(user.inventory)
-      ? user.inventory
-      : []
+    id: row.id,
+    robloxId: row.roblox_id,
+    username: row.username || "User",
+    avatar: row.avatar || "",
+    verified: Boolean(row.verified),
+
+    balance: numeric(row.balance),
+    wagered: numeric(row.wagered),
+    profit: numeric(row.profit),
+
+    coinflips: Number(row.coinflips) || 0,
+    wins: Number(row.wins) || 0,
+
+    inventory: []
   };
 }
 
 async function getUser(id) {
-  const data =
-    await supabaseRequest(
-      "users",
-      {
-        query:
-          `select=*` +
-          `&roblox_id=eq.${encodeURIComponent(String(id))}` +
-          `&limit=1`
-      }
-    );
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", String(id))
+    .maybeSingle();
 
-  return data?.[0] || null;
+  if (error) {
+    throw error;
+  }
+
+  return mapUser(data);
 }
 
 async function createOrUpdateUser(data) {
@@ -595,127 +537,217 @@ async function createOrUpdateUser(data) {
     return null;
   }
 
-  const existing =
-    await getUser(id);
+  const existing = await getUser(id);
 
-  if (existing) {
-    const updates = {};
-
-    if (data.username) {
-      updates.username =
-        clean(data.username);
-    }
-
-    if (data.avatar) {
-      updates.avatar =
-        clean(data.avatar);
-    }
-
-    if (
-      data.verified !== undefined
-    ) {
-      updates.verified =
-        Boolean(data.verified);
-    }
-
-    updates.updated_at =
-      new Date().toISOString();
-
-    const result =
-      await supabaseRequest(
-        "users",
-        {
-          method: "PATCH",
-          query:
-            `roblox_id=eq.${encodeURIComponent(id)}` +
-            `&select=*`,
-          body: updates,
-          prefer:
-            "return=representation"
-        }
-      );
-
-    return result?.[0] || existing;
-  }
-
-  const newUser = {
+  const row = {
+    id,
     roblox_id: id,
     username:
       clean(data.username) ||
+      existing?.username ||
       "User",
+
     avatar:
-      clean(data.avatar),
+      clean(data.avatar) ||
+      existing?.avatar ||
+      "",
+
     verified:
-      Boolean(data.verified),
-    balance: 0,
-    wagered: 0,
-    profit: 0,
-    coinflips: 0,
-    wins: 0,
-    inventory: [],
-    created_at:
-      new Date().toISOString(),
-    updated_at:
-      new Date().toISOString()
+      data.verified !== undefined
+        ? Boolean(data.verified)
+        : Boolean(existing?.verified),
+
+    balance:
+      existing?.balance ?? 0,
+
+    wagered:
+      existing?.wagered ?? 0,
+
+    profit:
+      existing?.profit ?? 0,
+
+    coinflips:
+      existing?.coinflips ?? 0,
+
+    wins:
+      existing?.wins ?? 0,
+
+    updated_at: Date.now()
   };
 
-  const result =
-    await supabaseRequest(
-      "users",
-      {
-        method: "POST",
-        query: "select=*",
-        body: newUser,
-        prefer:
-          "return=representation"
-      }
-    );
+  const { data: saved, error } = await supabase
+    .from("users")
+    .upsert(row, {
+      onConflict: "id"
+    })
+    .select("*")
+    .single();
 
-  return result?.[0] || null;
+  if (error) {
+    throw error;
+  }
+
+  return mapUser(saved);
 }
 
 /* =========================================================
-   HEALTH
-   ========================================================= */
+SUPABASE INVENTORY
+========================================================= */
 
-app.get("/health", async (req, res) => {
-  try {
-    let database = "offline";
+async function getInventory(userId) {
+  const { data, error } = await supabase
+    .from("inventory")
+    .select("*")
+    .eq("user_id", String(userId))
+    .order("created_at", {
+      ascending: true
+    });
 
-    if (SUPABASE_URL && SUPABASE_KEY) {
-      await supabaseRequest(
-        "users",
-        {
-          query:
-            "select=roblox_id&limit=1"
-        }
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map((item) => ({
+    id: item.id,
+    petId: item.pet_id,
+    name: item.pet_name,
+    petName: item.pet_name,
+    value: numeric(item.pet_value),
+    image:
+      item.image ||
+      petImage(item.pet_name)
+  }));
+}
+
+async function addInventoryItem(
+  userId,
+  pet
+) {
+  const name = clean(
+    pet.name ||
+      pet.petName ||
+      pet.itemName
+  );
+
+  if (!name) {
+    throw new Error(
+      "Inventory pet name is required."
+    );
+  }
+
+  const value = numeric(
+    pet.value ??
+      pet.petValue ??
+      pet.normalValue ??
+      pet.worth
+  );
+
+  const { data, error } = await supabase
+    .from("inventory")
+    .insert({
+      user_id: String(userId),
+      pet_id: pet.id || null,
+      pet_name: name,
+      pet_value: value,
+      image:
+        pet.image ||
+        petImage(name),
+      created_at: Date.now()
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+/*
+Optional endpoint for adding inventory.
+
+This does not break the old frontend.
+*/
+
+app.post(
+  "/inventory",
+  async (req, res) => {
+    try {
+      const userId = clean(
+        req.body?.userId ||
+          req.body?.robloxId
       );
 
-      database = "supabase";
-    }
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "User ID is required."
+        });
+      }
 
-    res.json({
-      success: true,
-      server: "online",
-      version: "3.0.0",
-      database,
-      pets: getPets().length,
-      valuesFile: VALUES_FILE,
-      cors: FRONTEND_ORIGIN
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      server: "online",
-      database: "offline",
-      error: error.message
-    });
+      const user = await getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found."
+        });
+      }
+
+      const item = await addInventoryItem(
+        userId,
+        req.body?.pet || req.body
+      );
+
+      res.status(201).json({
+        success: true,
+        item
+      });
+    } catch (error) {
+      console.error(
+        "POST /inventory:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        message: "Could not add inventory item."
+      });
+    }
   }
-});
+);
 
 /* =========================================================
-   DEBUG VALUES
-   ========================================================= */
+HEALTH
+========================================================= */
+
+app.get("/health", async (req, res) => {
+  let supabaseStatus = "ok";
+
+  try {
+    const { error } = await supabase
+      .from("users")
+      .select("id")
+      .limit(1);
+
+    if (error) {
+      supabaseStatus = "error";
+    }
+  } catch {
+    supabaseStatus = "error";
+  }
+
+  res.json({
+    success: true,
+    server: "online",
+    version: "3.0.0",
+    pets: getPets().length,
+    valuesFile: VALUES_FILE,
+    cors: FRONTEND_ORIGIN,
+    supabase: supabaseStatus
+  });
+});
 
 app.get("/debug-values", (req, res) => {
   const loaded = getPets();
@@ -729,8 +761,8 @@ app.get("/debug-values", (req, res) => {
 });
 
 /* =========================================================
-   PETS
-   ========================================================= */
+PETS
+========================================================= */
 
 app.get("/pets", (req, res) => {
   try {
@@ -754,8 +786,7 @@ app.get("/pets", (req, res) => {
     res.status(500).json({
       success: false,
       pets: [],
-      error:
-        "Unable to load pet values."
+      error: "Unable to load pet values."
     });
   }
 });
@@ -770,18 +801,15 @@ app.get("/api/pets", (req, res) => {
 app.get(
   "/pets/:name",
   (req, res) => {
-    const requested =
-      decodeURIComponent(
-        req.params.name
-      )
-        .trim()
-        .toLowerCase();
+    const requested = decodeURIComponent(
+      req.params.name
+    )
+      .trim()
+      .toLowerCase();
 
     const pet = getPets().find(
       (item) =>
-        item.name
-          .trim()
-          .toLowerCase() ===
+        item.name.trim().toLowerCase() ===
         requested
     );
 
@@ -800,26 +828,24 @@ app.get(
 );
 
 /* =========================================================
-   ROBLOX USER SEARCH
-   ========================================================= */
+ROBLOX USER SEARCH
+========================================================= */
 
 async function userLookup(req, res) {
   try {
-    const username =
-      clean(req.params.username);
+    const username = clean(
+      req.params.username
+    );
 
     if (!username) {
       return res.status(400).json({
         success: false,
-        message:
-          "Username required."
+        message: "Username required."
       });
     }
 
     const robloxUser =
-      await findRobloxUser(
-        username
-      );
+      await findRobloxUser(username);
 
     if (!robloxUser) {
       return res.status(404).json({
@@ -842,10 +868,10 @@ async function userLookup(req, res) {
 
     res.json({
       success: true,
+
       user: {
         id: robloxUser.id,
-        username:
-          robloxUser.name,
+        username: robloxUser.name,
         displayName:
           robloxUser.displayName ||
           robloxUser.name,
@@ -885,8 +911,8 @@ app.get(
 );
 
 /* =========================================================
-   VERIFICATION
-   ========================================================= */
+VERIFICATION
+========================================================= */
 
 function generatePhrase() {
   const words = [
@@ -912,27 +938,24 @@ function generatePhrase() {
   const first =
     words[
       Math.floor(
-        Math.random() *
-          words.length
+        Math.random() * words.length
       )
     ];
 
   const second =
     words[
       Math.floor(
-        Math.random() *
-          words.length
+        Math.random() * words.length
       )
     ];
 
   const number =
     Math.floor(
-      1000 +
-        Math.random() * 9000
+      1000 + Math.random() * 9000
     );
 
   return (
-    "admflip-" +
+    "ADMFLIP-" +
     first +
     "-" +
     second +
@@ -944,32 +967,29 @@ function generatePhrase() {
 app.get("/create", (req, res) => {
   res.json({
     success: true,
-    phrase:
-      generatePhrase()
+    phrase: generatePhrase()
   });
 });
 
-app.get(
-  "/api/create",
-  (req, res) => {
-    res.json({
-      success: true,
-      phrase:
-        generatePhrase()
-    });
-  }
-);
+app.get("/api/create", (req, res) => {
+  res.json({
+    success: true,
+    phrase: generatePhrase()
+  });
+});
 
 async function verifyRobloxBio(
   req,
   res
 ) {
   try {
-    const username =
-      clean(req.body?.username);
+    const username = clean(
+      req.body?.username
+    );
 
-    const phrase =
-      clean(req.body?.phrase);
+    const phrase = clean(
+      req.body?.phrase
+    );
 
     if (!username || !phrase) {
       return res.status(400).json({
@@ -999,19 +1019,15 @@ async function verifyRobloxBio(
         true
       );
 
-    const description =
-      clean(
-        profile?.description
-      );
+    const description = clean(
+      profile?.description
+    );
 
     console.log(
       `Verification check for ${robloxUser.name}: ` +
         `bio length ${description.length} | ` +
         JSON.stringify(
-          description.slice(
-            0,
-            120
-          )
+          description.slice(0, 120)
         )
     );
 
@@ -1046,14 +1062,17 @@ async function verifyRobloxBio(
 
     res.json({
       success: true,
+
       id: robloxUser.id,
       userId: robloxUser.id,
+
       username:
         profile.name ||
         robloxUser.name,
+
       avatar,
-      user:
-        dbUserToApi(user)
+
+      user
     });
   } catch (error) {
     console.error(
@@ -1088,16 +1107,17 @@ app.post(
 );
 
 /* =========================================================
-   ACCOUNT
-   ========================================================= */
+ACCOUNT
+========================================================= */
 
 async function accountHandler(
   req,
   res
 ) {
   try {
-    const id =
-      clean(req.params.robloxId);
+    const id = clean(
+      req.params.robloxId
+    );
 
     if (!/^\d+$/.test(id)) {
       return res.status(400).json({
@@ -1107,8 +1127,7 @@ async function accountHandler(
       });
     }
 
-    let user =
-      await getUser(id);
+    let user = await getUser(id);
 
     if (!user) {
       const profile =
@@ -1121,16 +1140,37 @@ async function accountHandler(
         await createOrUpdateUser({
           id,
           username:
-            profile?.name ||
-            "User",
+            profile?.name || "User",
           avatar
         });
     }
 
+    const inventory =
+      await getInventory(id);
+
+    user.inventory = inventory;
+
     res.json({
       success: true,
-      user:
-        dbUserToApi(user)
+
+      user: {
+        id: user.id,
+        robloxId: user.robloxId,
+        username: user.username,
+        avatar: user.avatar,
+
+        balance: user.balance || 0,
+        wagered: user.wagered || 0,
+        profit: user.profit || 0,
+
+        coinflips:
+          user.coinflips || 0,
+
+        wins:
+          user.wins || 0,
+
+        inventory
+      }
     });
   } catch (error) {
     console.error(
@@ -1159,8 +1199,8 @@ app.get(
 );
 
 /* =========================================================
-   CHAT
-   ========================================================= */
+CHAT
+========================================================= */
 
 function hasLink(text) {
   return /(?:https?:\/\/|www\.|discord\.gg\/|discord\.com\/invite\/)/i.test(
@@ -1169,13 +1209,20 @@ function hasLink(text) {
 }
 
 async function getChatMessages() {
-  return await supabaseRequest(
-    "chat_messages",
-    {
-      query:
-        "select=*&order=created_at.asc&limit=200"
-    }
-  );
+  const { data, error } =
+    await supabase
+      .from("chat_messages")
+      .select("*")
+      .order("created_at", {
+        ascending: true
+      })
+      .limit(MAX_CHAT_MESSAGES);
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
 }
 
 app.get(
@@ -1191,15 +1238,13 @@ app.get(
       });
     } catch (error) {
       console.error(
-        "Chat messages:",
+        "GET /chat/messages:",
         error
       );
 
       res.status(500).json({
         success: false,
-        messages: [],
-        error:
-          "Unable to load chat."
+        messages: []
       });
     }
   }
@@ -1218,7 +1263,7 @@ app.get(
       });
     } catch (error) {
       console.error(
-        "Chat messages:",
+        "GET /api/chat/messages:",
         error
       );
 
@@ -1235,42 +1280,41 @@ async function createChatMessage(
   res
 ) {
   try {
-    const robloxId =
-      clean(
-        req.body?.robloxId ||
-          req.body?.userId
-      );
+    const robloxId = clean(
+      req.body?.robloxId ||
+        req.body?.userId
+    );
 
-    const username =
-      clean(req.body?.username);
+    const username = clean(
+      req.body?.username
+    );
 
-    const avatar =
-      clean(req.body?.avatar);
+    const avatar = clean(
+      req.body?.avatar
+    );
 
-    const message =
-      clean(req.body?.message);
+    const message = clean(
+      req.body?.message
+    );
 
     if (!robloxId || !username) {
       return res.status(401).json({
         success: false,
-        message:
-          "Sign in to chat."
+        message: "Sign in to chat."
       });
     }
 
     if (!message) {
       return res.status(400).json({
         success: false,
-        message:
-          "Message is empty."
+        message: "Message is empty."
       });
     }
 
     if (message.length > 250) {
       return res.status(400).json({
         success: false,
-        message:
-          "Message is too long."
+        message: "Message is too long."
       });
     }
 
@@ -1291,63 +1335,67 @@ async function createChatMessage(
       message,
       type: "message",
       pinned: false,
-      created_at:
-        new Date().toISOString()
+      created_at: Date.now()
     };
 
-    const result =
-      await supabaseRequest(
-        "chat_messages",
-        {
-          method: "POST",
-          query: "select=*",
-          body: chatMessage,
-          prefer:
-            "return=representation"
-        }
-      );
+    const { data, error } =
+      await supabase
+        .from("chat_messages")
+        .insert(chatMessage)
+        .select("*")
+        .single();
 
-    // Keep chat at roughly MAX_CHAT_MESSAGES.
-    const messages =
-      await supabaseRequest(
-        "chat_messages",
-        {
-          query:
-            "select=id&order=created_at.desc"
-        }
-      );
+    if (error) {
+      throw error;
+    }
+
+    /*
+    Keep chat from growing forever.
+    */
+
+    const { data: oldMessages } =
+      await supabase
+        .from("chat_messages")
+        .select("id")
+        .order("created_at", {
+          ascending: false
+        })
+        .range(
+          MAX_CHAT_MESSAGES,
+          MAX_CHAT_MESSAGES + 100
+        );
 
     if (
-      Array.isArray(messages) &&
-      messages.length >
-        MAX_CHAT_MESSAGES
+      oldMessages &&
+      oldMessages.length
     ) {
-      const oldMessages =
-        messages.slice(
-          MAX_CHAT_MESSAGES
+      await supabase
+        .from("chat_messages")
+        .delete()
+        .in(
+          "id",
+          oldMessages.map(
+            (m) => m.id
+          )
         );
-
-      for (const old of oldMessages) {
-        await supabaseRequest(
-          "chat_messages",
-          {
-            method: "DELETE",
-            query:
-              `id=eq.${encodeURIComponent(old.id)}`
-          }
-        );
-      }
     }
 
     res.json({
       success: true,
-      message:
-        result?.[0] ||
-        chatMessage
+      message: {
+        id: data.id,
+        username: data.username,
+        robloxId: data.roblox_id,
+        avatar: data.avatar,
+        message: data.message,
+        type: data.type,
+        pinned: data.pinned,
+        createdAt: data.created_at
+      }
     });
   } catch (error) {
     console.error(
-      "Create chat message:",
+      "POST /chat/messages:",
       error
     );
 
@@ -1371,197 +1419,175 @@ app.post(
 
 async function getOnlineCount() {
   const cutoff =
-    new Date(
-      Date.now() -
-        5 * 60 * 1000
-    ).toISOString();
+    Date.now() -
+    5 * 60 * 1000;
 
-  const messages =
-    await supabaseRequest(
-      "chat_messages",
-      {
-        query:
-          `select=roblox_id&created_at=gte.${encodeURIComponent(cutoff)}`
-      }
-    );
+  const { data, error } =
+    await supabase
+      .from("chat_messages")
+      .select("roblox_id,username")
+      .gte(
+        "created_at",
+        cutoff
+      );
 
-  const online =
-    new Set(
-      messages
-        .map(
-          (message) =>
-            message.roblox_id
-        )
-        .filter(Boolean)
-    );
+  if (error) {
+    throw error;
+  }
+
+  const online = new Set(
+    (data || []).map(
+      (message) =>
+        message.roblox_id ||
+        message.username
+    )
+  );
 
   return online.size;
 }
 
+async function onlineHandler(
+  req,
+  res
+) {
+  try {
+    const online =
+      await getOnlineCount();
+
+    res.json({
+      success: true,
+      online,
+      count: online,
+      onlineCount: online
+    });
+  } catch (error) {
+    console.error(
+      "Online count:",
+      error
+    );
+
+    res.json({
+      success: true,
+      online: 0,
+      count: 0,
+      onlineCount: 0
+    });
+  }
+}
+
 app.get(
   "/chat/online",
-  async (req, res) => {
-    try {
-      const online =
-        await getOnlineCount();
-
-      res.json({
-        success: true,
-        online,
-        count: online,
-        onlineCount: online
-      });
-    } catch (error) {
-      console.error(
-        "Chat online:",
-        error
-      );
-
-      res.json({
-        success: true,
-        online: 0,
-        count: 0,
-        onlineCount: 0
-      });
-    }
-  }
+  onlineHandler
 );
 
 app.get(
   "/api/chat/online",
-  async (req, res) => {
-    try {
-      const online =
-        await getOnlineCount();
-
-      res.json({
-        success: true,
-        online,
-        count: online,
-        onlineCount: online
-      });
-    } catch {
-      res.json({
-        success: true,
-        online: 0,
-        count: 0,
-        onlineCount: 0
-      });
-    }
-  }
+  onlineHandler
 );
 
 /* =========================================================
-   COINFLIPS
-   ========================================================= */
+COINFLIPS
+========================================================= */
 
-function dbCoinflipToApi(
-  flip
-) {
-  if (!flip) {
-    return null;
-  }
-
+function formatCoinflip(row) {
   return {
-    id: flip.id,
-    username:
-      flip.username,
-    userId:
-      String(flip.roblox_id),
-    robloxId:
-      String(flip.roblox_id),
-    avatar:
-      flip.avatar || "/logo.png",
-    petName:
-      flip.pet_name,
-    petValue:
-      numeric(flip.pet_value),
-    value:
-      numeric(flip.pet_value),
+    id: row.id,
+    username: row.username,
+    userId: row.user_id,
+    robloxId: row.roblox_id,
+    avatar: row.avatar || "/logo.png",
+
+    petName: row.pet_name,
+    petValue: numeric(row.pet_value),
+    value: numeric(row.value),
+
     image:
-      flip.image,
-    side:
-      flip.side,
-    status:
-      flip.status,
-    createdAt:
-      new Date(
-        flip.created_at
-      ).getTime()
+      row.image ||
+      petImage(row.pet_name),
+
+    side: row.side,
+    status: row.status,
+
+    createdAt: row.created_at
   };
 }
 
 async function getActiveCoinflips() {
-  return await supabaseRequest(
-    "coinflips",
-    {
-      query:
-        "select=*&status=eq.active&order=created_at.desc&limit=100"
-    }
+  const { data, error } =
+    await supabase
+      .from("coinflips")
+      .select("*")
+      .eq("status", "active")
+      .order("created_at", {
+        ascending: false
+      })
+      .limit(MAX_COINFLIPS);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map(
+    formatCoinflip
   );
+}
+
+async function coinflipsHandler(
+  req,
+  res
+) {
+  try {
+    const active =
+      await getActiveCoinflips();
+
+    const totalValue =
+      active.reduce(
+        (sum, flip) =>
+          sum +
+          numeric(
+            flip.petValue
+          ),
+        0
+      );
+
+    res.json({
+      success: true,
+      coinflips: active,
+      total: active.length,
+      totalValue
+    });
+  } catch (error) {
+    console.error(
+      "GET /coinflips:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      coinflips: []
+    });
+  }
 }
 
 app.get(
   "/coinflips",
-  async (req, res) => {
-    try {
-      const flips =
-        await getActiveCoinflips();
-
-      const mapped =
-        flips.map(
-          dbCoinflipToApi
-        );
-
-      const totalValue =
-        mapped.reduce(
-          (sum, flip) =>
-            sum +
-            numeric(
-              flip.petValue
-            ),
-          0
-        );
-
-      res.json({
-        success: true,
-        coinflips: mapped,
-        total: mapped.length,
-        totalValue
-      });
-    } catch (error) {
-      console.error(
-        "Coinflips:",
-        error
-      );
-
-      res.status(500).json({
-        success: false,
-        coinflips: [],
-        total: 0,
-        totalValue: 0
-      });
-    }
-  }
+  coinflipsHandler
 );
 
 app.get(
   "/api/coinflips",
   async (req, res) => {
     try {
-      const flips =
+      const active =
         await getActiveCoinflips();
 
       res.json({
         success: true,
-        coinflips:
-          flips.map(
-            dbCoinflipToApi
-          )
+        coinflips: active
       });
     } catch (error) {
       console.error(
-        "Coinflips:",
+        "GET /api/coinflips:",
         error
       );
 
@@ -1578,14 +1604,14 @@ async function createCoinflip(
   res
 ) {
   try {
-    const username =
-      clean(req.body?.username);
+    const username = clean(
+      req.body?.username
+    );
 
-    const userId =
-      clean(
-        req.body?.userId ||
-          req.body?.robloxId
-      );
+    const userId = clean(
+      req.body?.userId ||
+        req.body?.robloxId
+    );
 
     if (!username || !userId) {
       return res.status(401).json({
@@ -1595,9 +1621,9 @@ async function createCoinflip(
       });
     }
 
-    const side =
-      clean(req.body?.side)
-        .toLowerCase();
+    const side = clean(
+      req.body?.side
+    ).toLowerCase();
 
     if (
       side !== "heads" &&
@@ -1613,19 +1639,23 @@ async function createCoinflip(
     const inputPet =
       req.body?.pet || {};
 
-    const name =
-      clean(
-        inputPet.name ||
-          req.body?.petName
-      );
+    const name = clean(
+      inputPet.name ||
+        req.body?.petName
+    );
 
     if (!name) {
       return res.status(400).json({
         success: false,
-        message:
-          "Select a pet."
+        message: "Select a pet."
       });
     }
+
+    /*
+    IMPORTANT:
+    Always get the official value
+    from values.txt.
+    */
 
     const serverPet =
       getPets().find(
@@ -1642,150 +1672,131 @@ async function createCoinflip(
       });
     }
 
-    let user =
-      await getUser(userId);
+    /*
+    Make sure the user exists.
+    */
 
-    if (!user) {
-      user =
-        await createOrUpdateUser({
-          id: userId,
-          username,
-          avatar:
-            clean(
-              req.body?.avatar
-            ),
-          verified: true
-        });
-    }
+    const user =
+      await createOrUpdateUser({
+        id: userId,
+        username,
+        avatar: clean(
+          req.body?.avatar
+        ),
+        verified: true
+      });
 
-    if (!user) {
-      throw new Error(
-        "Could not create user."
+    /*
+    Verify the pet exists in
+    this user's inventory.
+    */
+
+    const inventory =
+      await getInventory(userId);
+
+    const ownedPet =
+      inventory.find(
+        (pet) =>
+          pet.name.toLowerCase() ===
+          serverPet.name.toLowerCase()
       );
-    }
 
-    const currentWagered =
-      numeric(user.wagered);
-
-    const currentCoinflips =
-      numeric(user.coinflips);
-
-    await supabaseRequest(
-      "users",
-      {
-        method: "PATCH",
-        query:
-          `roblox_id=eq.${encodeURIComponent(userId)}`,
-        body: {
-          username,
-          avatar:
-            clean(
-              req.body?.avatar
-            ) ||
-            user.avatar ||
-            "",
-          verified: true,
-          wagered:
-            currentWagered +
-            serverPet.value,
-          coinflips:
-            currentCoinflips + 1,
-          updated_at:
-            new Date().toISOString()
-        },
-        prefer:
-          "return=minimal"
-      }
-    );
+    /*
+    Your old backend did NOT enforce
+    inventory ownership. To preserve
+    old behavior, we do not reject it.
+    */
 
     const flip = {
       id: makeId(),
-      roblox_id: userId,
+
       username:
-        username ||
         user.username,
+
+      user_id:
+        user.id,
+
+      roblox_id:
+        user.id,
+
       avatar:
-        clean(
-          req.body?.avatar
-        ) ||
         user.avatar ||
         "/logo.png",
+
       pet_name:
         serverPet.name,
+
       pet_value:
         serverPet.value,
+
+      value:
+        serverPet.value,
+
       image:
         serverPet.image,
+
       side,
+
       status: "active",
-      created_at:
-        new Date().toISOString()
+
+      created_at: Date.now()
     };
 
-    const result =
-      await supabaseRequest(
-        "coinflips",
-        {
-          method: "POST",
-          query: "select=*",
-          body: flip,
-          prefer:
-            "return=representation"
-        }
+    const { data, error } =
+      await supabase
+        .from("coinflips")
+        .insert(flip)
+        .select("*")
+        .single();
+
+    if (error) {
+      throw error;
+    }
+
+    /*
+    Update wagered + games played.
+    */
+
+    const { error: updateError } =
+      await supabase
+        .from("users")
+        .update({
+          wagered:
+            numeric(
+              user.wagered
+            ) +
+            serverPet.value,
+
+          coinflips:
+            Number(
+              user.coinflips
+            ) + 1,
+
+          updated_at: Date.now()
+        })
+        .eq("id", user.id);
+
+    if (updateError) {
+      console.error(
+        "Could not update user stats:",
+        updateError
       );
-
-    const savedFlip =
-      result?.[0] || flip;
-
-    // Keep database reasonably small.
-    const allFlips =
-      await supabaseRequest(
-        "coinflips",
-        {
-          query:
-            "select=id&order=created_at.desc"
-        }
-      );
-
-    if (
-      Array.isArray(allFlips) &&
-      allFlips.length >
-        MAX_COINFLIPS
-    ) {
-      const oldFlips =
-        allFlips.slice(
-          MAX_COINFLIPS
-        );
-
-      for (const old of oldFlips) {
-        await supabaseRequest(
-          "coinflips",
-          {
-            method: "DELETE",
-            query:
-              `id=eq.${encodeURIComponent(old.id)}`
-          }
-        );
-      }
     }
 
     res.status(201).json({
       success: true,
       coinflip:
-        dbCoinflipToApi(
-          savedFlip
-        )
+        formatCoinflip(data)
     });
   } catch (error) {
     console.error(
-      "Create coinflip:",
+      "POST /coinflips:",
       error
     );
 
     res.status(500).json({
       success: false,
       message:
-        error.message ||
         "Could not create coinflip."
     });
   }
@@ -1802,25 +1813,31 @@ app.post(
 );
 
 /* =========================================================
-   LEADERBOARD
-   ========================================================= */
+LEADERBOARD
+========================================================= */
 
 async function leaderboardHandler(
   req,
   res
 ) {
   try {
-    const users =
-      await supabaseRequest(
-        "users",
-        {
-          query:
-            "select=roblox_id,username,avatar,wagered,profit&order=wagered.desc&limit=10"
-        }
-      );
+    const { data, error } =
+      await supabase
+        .from("users")
+        .select(
+          "username,avatar,wagered,profit"
+        )
+        .order("wagered", {
+          ascending: false
+        })
+        .limit(10);
+
+    if (error) {
+      throw error;
+    }
 
     const leaderboard =
-      users.map(
+      (data || []).map(
         (user, index) => ({
           place: index + 1,
           username:
@@ -1867,8 +1884,8 @@ app.get(
 );
 
 /* =========================================================
-   STATUS
-   ========================================================= */
+STATUS
+========================================================= */
 
 async function statusHandler(
   req,
@@ -1884,17 +1901,23 @@ async function statusHandler(
       announcement: "",
       activeCoinflips:
         active.length,
+
       totalCoinflipValue:
         active.reduce(
           (sum, flip) =>
             sum +
             numeric(
-              flip.pet_value
+              flip.petValue
             ),
           0
         )
     });
-  } catch {
+  } catch (error) {
+    console.error(
+      "Status:",
+      error
+    );
+
     res.json({
       success: true,
       online: true,
@@ -1916,15 +1939,14 @@ app.get(
 );
 
 /* =========================================================
-   API INDEX
-   ========================================================= */
+API INDEX
+========================================================= */
 
 app.get("/api", (req, res) => {
   res.json({
     success: true,
     name: "ADMFLIP API",
     version: "3.0.0",
-    database: "Supabase",
     cors: FRONTEND_ORIGIN,
 
     endpoints: [
@@ -1941,33 +1963,31 @@ app.get("/api", (req, res) => {
       "POST /chat/messages",
       "GET  /chat/online",
       "GET  /leaderboard",
-      "GET  /status"
+      "GET  /status",
+      "GET  /inventory",
+      "POST /inventory"
     ]
   });
 });
 
 /* =========================================================
-   STATIC FRONTEND
-   ========================================================= */
+STATIC FRONTEND
+========================================================= */
 
 if (fs.existsSync(PUBLIC_DIR)) {
   app.use(
-    express.static(
-      PUBLIC_DIR,
-      {
-        index: false,
-        maxAge: "1h"
-      }
-    )
+    express.static(PUBLIC_DIR, {
+      index: false,
+      maxAge: "1h"
+    })
   );
 }
 
 app.get("/", (req, res) => {
-  const index =
-    path.join(
-      PUBLIC_DIR,
-      "index.html"
-    );
+  const index = path.join(
+    PUBLIC_DIR,
+    "index.html"
+  );
 
   if (fs.existsSync(index)) {
     return res.sendFile(index);
@@ -1976,38 +1996,29 @@ app.get("/", (req, res) => {
   res.json({
     success: true,
     server: "online",
-    database: "Supabase",
     message:
       "ADMFLIP API — frontend is hosted separately."
   });
 });
 
 /* =========================================================
-   404
-   ========================================================= */
+404
+========================================================= */
 
-app.use(
-  (req, res) => {
-    res.status(404).json({
-      success: false,
-      error:
-        "API route not found.",
-      path: req.path
-    });
-  }
-);
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: "API route not found.",
+    path: req.path
+  });
+});
 
 /* =========================================================
-   ERROR HANDLER
-   ========================================================= */
+ERROR HANDLER
+========================================================= */
 
 app.use(
-  (
-    error,
-    req,
-    res,
-    next
-  ) => {
+  (error, req, res, next) => {
     console.error(
       "ADMFLIP SERVER ERROR:",
       error
@@ -2026,64 +2037,96 @@ app.use(
 );
 
 /* =========================================================
-   START
-   ========================================================= */
+START
+========================================================= */
 
-app.listen(
-  PORT,
-  "0.0.0.0",
-  () => {
-    console.log(
-      "========================================"
-    );
+async function start() {
+  console.log(
+    "========================================"
+  );
 
-    console.log(
-      "ADMFLIP backend v3.0.0 started"
-    );
+  console.log(
+    "Testing Supabase connection..."
+  );
 
-    console.log(
-      "Port:",
-      PORT
-    );
+  try {
+    const { error } =
+      await supabase
+        .from("users")
+        .select("id")
+        .limit(1);
 
-    console.log(
-      "Database: Supabase"
-    );
+    if (error) {
+      console.error(
+        "Supabase connection failed:",
+        error.message
+      );
 
-    console.log(
-      "Supabase URL:",
-      SUPABASE_URL
-        ? SUPABASE_URL
-        : "NOT SET"
-    );
+      process.exit(1);
+    }
 
     console.log(
-      "Values:",
-      VALUES_FILE
+      "Supabase connection: OK"
+    );
+  } catch (error) {
+    console.error(
+      "Supabase connection failed:",
+      error
     );
 
-    console.log(
-      "Pets loaded:",
-      getPets().length
-    );
-
-    console.log(
-      "CORS origins:",
-      FRONTEND_ORIGIN.join(
-        ", "
-      )
-    );
-
-    console.log(
-      "Public dir:",
-      PUBLIC_DIR,
-      fs.existsSync(PUBLIC_DIR)
-        ? "(served)"
-        : "(not present)"
-    );
-
-    console.log(
-      "========================================"
-    );
+    process.exit(1);
   }
-);
+
+  console.log(
+    "ADMFLIP backend v3.0 started"
+  );
+
+  console.log(
+    "Port:",
+    PORT
+  );
+
+  console.log(
+    "Values:",
+    VALUES_FILE
+  );
+
+  console.log(
+    "Pets loaded:",
+    getPets().length
+  );
+
+  console.log(
+    "CORS origins:",
+    FRONTEND_ORIGIN.join(", ")
+  );
+
+  console.log(
+    "Supabase:",
+    SUPABASE_URL
+  );
+
+  console.log(
+    "Public dir:",
+    PUBLIC_DIR,
+    fs.existsSync(PUBLIC_DIR)
+      ? "(served)"
+      : "(not present)"
+  );
+
+  console.log(
+    "========================================"
+  );
+
+  app.listen(
+    PORT,
+    "0.0.0.0",
+    () => {
+      console.log(
+        `ADMFLIP listening on 0.0.0.0:${PORT}`
+      );
+    }
+  );
+}
+
+start();
