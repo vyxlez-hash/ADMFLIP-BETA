@@ -9,54 +9,41 @@ const app = express();
 
 const PORT = process.env.PORT || 10000;
 
-/*
-=========================================================
-ADMFLIP STRUCTURE
+/* =========================================================
+   PATHS
+   ========================================================= */
 
-ADMFLIP-BETA/
-├── backend/
-│   ├── server.js
-│   ├── package.json
-│   └── values.txt
-│
-└── public/
-    ├── index.html
-    ├── style.css
-    ├── app.js
-    ├── logo.png
-    ├── roblox.png
-    └── login-banner.png
-=========================================================
-*/
+const ROOT_DIR = path.resolve(__dirname, "..");
+const PUBLIC_DIR = path.join(ROOT_DIR, "public");
+const VALUES_FILE = path.join(__dirname, "values.txt");
 
-/*
-=========================================================
-PATHS
-=========================================================
-*/
+console.log("ROOT_DIR:", ROOT_DIR);
+console.log("PUBLIC_DIR:", PUBLIC_DIR);
+console.log("VALUES_FILE:", VALUES_FILE);
 
-const ROOT_DIR = path.join(__dirname, "..");
+/* =========================================================
+   CORS
+   ========================================================= */
 
-const PUBLIC_DIR = path.join(
-  ROOT_DIR,
-  "public"
-);
-
-const VALUES_FILE = path.join(
-  __dirname,
-  "values.txt"
-);
-
-/*
-=========================================================
-CORS
-=========================================================
-*/
+const allowedOrigins = [
+  "https://admflip-beta.vyxlez.workers.dev"
+];
 
 app.use(
   cors({
-    origin:
-      "https://admflip-beta.vyxlez.workers.dev",
+    origin: function (origin, callback) {
+      // Allow requests without Origin, such as curl/Postman/server requests
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.log("CORS blocked:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
 
     credentials: true,
 
@@ -79,11 +66,12 @@ app.use(
   })
 );
 
-/*
-=========================================================
-MIDDLEWARE
-=========================================================
-*/
+/* Explicit preflight */
+app.options("*", cors());
+
+/* =========================================================
+   BODY PARSING
+   ========================================================= */
 
 app.use(
   express.json({
@@ -97,11 +85,9 @@ app.use(
   })
 );
 
-/*
-=========================================================
-HELPERS
-=========================================================
-*/
+/* =========================================================
+   HELPERS
+   ========================================================= */
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -117,14 +103,6 @@ function numeric(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function petImage(name) {
-  return (
-    "https://amvgg.com/items/" +
-    encodeURIComponent(String(name)) +
-    ".webp"
-  );
-}
-
 function makeId() {
   return (
     Date.now().toString(36) +
@@ -133,16 +111,22 @@ function makeId() {
   );
 }
 
-/*
-=========================================================
-VALUES
-=========================================================
-*/
+function petImage(name) {
+  return (
+    "https://amvgg.com/items/" +
+    encodeURIComponent(String(name)) +
+    ".webp"
+  );
+}
+
+/* =========================================================
+   VALUES
+   ========================================================= */
 
 function loadPets() {
   if (!fs.existsSync(VALUES_FILE)) {
     console.error(
-      "values.txt not found:",
+      "values.txt NOT FOUND:",
       VALUES_FILE
     );
 
@@ -162,16 +146,8 @@ function loadPets() {
 
     const result = [];
 
-    for (
-      let i = 0;
-      i < lines.length;
-      i++
-    ) {
+    for (let i = 0; i < lines.length; i++) {
       const name = lines[i];
-
-      /*
-       * Ignore optional [123] markers.
-       */
 
       if (/^\[\d+\]$/.test(name)) {
         continue;
@@ -181,27 +157,18 @@ function loadPets() {
 
       while (
         valueIndex < lines.length &&
-        /^\[\d+\]$/.test(
-          lines[valueIndex]
-        )
+        /^\[\d+\]$/.test(lines[valueIndex])
       ) {
         valueIndex++;
       }
 
-      if (
-        valueIndex >= lines.length
-      ) {
+      if (valueIndex >= lines.length) {
         continue;
       }
 
-      const rawValue =
-        lines[valueIndex];
+      const rawValue = lines[valueIndex];
 
-      if (
-        !/^-?\d+(?:\.\d+)?$/.test(
-          rawValue
-        )
-      ) {
+      if (!/^-?\d+(?:\.\d+)?$/.test(rawValue)) {
         continue;
       }
 
@@ -214,14 +181,8 @@ function loadPets() {
       result.push({
         id: name
           .toLowerCase()
-          .replace(
-            /[^a-z0-9]+/g,
-            "-"
-          )
-          .replace(
-            /^-|-$/g,
-            ""
-          ),
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, ""),
 
         name,
 
@@ -252,31 +213,18 @@ let pets = loadPets();
 
 function getPets() {
   pets = loadPets();
-
   return pets;
 }
 
-/*
-=========================================================
-IN-MEMORY DATA
-
-NOTE:
-Railway can restart instances.
-These Maps/arrays reset when that happens.
-=========================================================
-*/
+/* =========================================================
+   IN-MEMORY DATA
+   ========================================================= */
 
 const users = new Map();
 
 const coinflips = [];
 
 const chatMessages = [];
-
-/*
-=========================================================
-DEFAULT CHAT
-=========================================================
-*/
 
 chatMessages.push({
   id: "welcome",
@@ -296,11 +244,9 @@ chatMessages.push({
   createdAt: Date.now()
 });
 
-/*
-=========================================================
-USER HELPERS
-=========================================================
-*/
+/* =========================================================
+   USER HELPERS
+   ========================================================= */
 
 function getUser(id) {
   return users.get(String(id));
@@ -309,9 +255,9 @@ function getUser(id) {
 function createOrUpdateUser(data) {
   const id = String(
     data.id ??
-      data.robloxId ??
-      data.userId ??
-      ""
+    data.robloxId ??
+    data.userId ??
+    ""
   ).trim();
 
   if (!id) {
@@ -327,14 +273,13 @@ function createOrUpdateUser(data) {
       robloxId: id,
 
       username:
-        clean(data.username) ||
-        "User",
+        clean(data.username) || "User",
 
-      avatar: clean(data.avatar),
+      avatar:
+        clean(data.avatar),
 
-      verified: Boolean(
-        data.verified
-      ),
+      verified:
+        Boolean(data.verified),
 
       balance: 0,
 
@@ -353,173 +298,113 @@ function createOrUpdateUser(data) {
   }
 
   if (data.username) {
-    user.username = clean(
-      data.username
-    );
+    user.username = clean(data.username);
   }
 
   if (data.avatar) {
-    user.avatar = clean(
-      data.avatar
-    );
+    user.avatar = clean(data.avatar);
   }
 
-  if (
-    data.verified !== undefined
-  ) {
-    user.verified = Boolean(
-      data.verified
-    );
+  if (data.verified !== undefined) {
+    user.verified = Boolean(data.verified);
   }
 
   return user;
 }
 
-/*
-=========================================================
-HEALTH
-=========================================================
-*/
+/* =========================================================
+   HEALTH
+   ========================================================= */
 
-app.get(
-  "/health",
-  (req, res) => {
-    res.json({
-      success: true,
+app.get("/health", (req, res) => {
+  res.json({
+    success: true,
+    server: "online",
+    pets: getPets().length,
+    valuesFile: VALUES_FILE,
+    publicDirectory: PUBLIC_DIR
+  });
+});
 
-      server: "online",
+/* =========================================================
+   DEBUG
+   ========================================================= */
 
-      pets: getPets().length,
+app.get("/debug-values", (req, res) => {
+  const loaded = getPets();
 
-      publicDirectory: PUBLIC_DIR,
+  res.json({
+    success: true,
+    count: loaded.length,
+    valuesFile: VALUES_FILE,
+    firstPets: loaded.slice(0, 10)
+  });
+});
 
-      valuesFile: VALUES_FILE
-    });
-  }
-);
+/* =========================================================
+   PETS
+   ========================================================= */
 
-/*
-=========================================================
-DEBUG VALUES
-=========================================================
-*/
-
-app.get(
-  "/debug-values",
-  (req, res) => {
+app.get("/pets", (req, res) => {
+  try {
     const loaded = getPets();
 
-    res.json({
-      success: true,
-
-      count: loaded.length,
-
-      valuesFile: VALUES_FILE,
-
-      firstPets: loaded.slice(0, 10)
-    });
-  }
-);
-
-/*
-=========================================================
-PETS
-=========================================================
-*/
-
-app.get(
-  "/pets",
-  (req, res) => {
-    try {
-      const loaded = getPets();
-
-      res.set(
-        "Cache-Control",
-        "no-store"
-      );
-
-      res.json({
-        success: true,
-
-        pets: loaded
-      });
-    } catch (error) {
-      console.error(
-        "GET /pets:",
-        error
-      );
-
-      res.status(500).json({
-        success: false,
-
-        pets: [],
-
-        error:
-          "Unable to load pet values."
-      });
-    }
-  }
-);
-
-app.get(
-  "/api/pets",
-  (req, res) => {
-    const loaded = getPets();
+    res.set("Cache-Control", "no-store");
 
     res.json({
       success: true,
-
       pets: loaded
     });
-  }
-);
+  } catch (error) {
+    console.error("GET /pets:", error);
 
-app.get(
-  "/pets/:name",
-  (req, res) => {
-    const requested =
-      decodeURIComponent(
-        req.params.name
-      )
-        .trim()
-        .toLowerCase();
-
-    const pet = getPets().find(
-      item =>
-        item.name
-          .trim()
-          .toLowerCase() ===
-        requested
-    );
-
-    if (!pet) {
-      return res.status(404).json({
-        success: false,
-
-        error: "Pet not found."
-      });
-    }
-
-    res.json({
-      success: true,
-
-      pet
+    res.status(500).json({
+      success: false,
+      pets: [],
+      error: "Unable to load pet values."
     });
   }
-);
+});
 
-/*
-=========================================================
-ROBLOX REQUEST
-=========================================================
-*/
+app.get("/api/pets", (req, res) => {
+  res.json({
+    success: true,
+    pets: getPets()
+  });
+});
 
-async function robloxFetch(
-  url,
-  options = {}
-) {
-  const controller =
-    new AbortController();
+app.get("/pets/:name", (req, res) => {
+  const requested = decodeURIComponent(
+    req.params.name
+  )
+    .trim()
+    .toLowerCase();
+
+  const pet = getPets().find(
+    item =>
+      item.name.trim().toLowerCase() ===
+      requested
+  );
+
+  if (!pet) {
+    return res.status(404).json({
+      success: false,
+      error: "Pet not found."
+    });
+  }
+
+  res.json({
+    success: true,
+    pet
+  });
+});
+
+/* =========================================================
+   ROBLOX FETCH
+   ========================================================= */
+
+async function robloxFetch(url, options = {}) {
+  const controller = new AbortController();
 
   const timeout = setTimeout(
     () => controller.abort(),
@@ -527,67 +412,48 @@ async function robloxFetch(
   );
 
   try {
-    const response = await fetch(
-      url,
-      {
-        ...options,
+    return await fetch(url, {
+      ...options,
 
-        headers: {
-          "User-Agent":
-            "ADMFLIP/1.0",
+      headers: {
+        "User-Agent": "ADMFLIP/1.0",
+        "Accept": "application/json",
+        ...(options.headers || {})
+      },
 
-          "Accept":
-            "application/json",
-
-          ...(options.headers || {})
-        },
-
-        signal: controller.signal
-      }
-    );
-
-    return response;
+      signal: controller.signal
+    });
   } finally {
     clearTimeout(timeout);
   }
 }
 
-/*
-=========================================================
-ROBLOX USER SEARCH
-=========================================================
-*/
+/* =========================================================
+   ROBLOX USER SEARCH
+   ========================================================= */
 
-async function findRobloxUser(
-  username
-) {
-  const cleanUsername =
-    clean(username);
+async function findRobloxUser(username) {
+  const cleanUsername = clean(username);
 
   if (!cleanUsername) {
     return null;
   }
 
-  const response =
-    await robloxFetch(
-      "https://users.roblox.com/v1/usernames/users",
-      {
-        method: "POST",
+  const response = await robloxFetch(
+    "https://users.roblox.com/v1/usernames/users",
+    {
+      method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
+      headers: {
+        "Content-Type": "application/json"
+      },
 
-        body: JSON.stringify({
-          usernames: [
-            cleanUsername
-          ],
-
-          excludeBannedUsers: true
-        })
-      }
-    );
+      body: JSON.stringify({
+        usernames: [cleanUsername],
+        excludeBannedUsers: true
+      })
+    }
+  );
 
   if (!response.ok) {
     throw new Error(
@@ -595,20 +461,16 @@ async function findRobloxUser(
     );
   }
 
-  const data =
-    await response.json();
+  const data = await response.json();
 
-  const found = Array.isArray(
-    data?.data
-  )
+  const found = Array.isArray(data?.data)
     ? data.data
     : [];
 
   return (
     found.find(
       user =>
-        String(user.name)
-          .toLowerCase() ===
+        String(user.name).toLowerCase() ===
         cleanUsername.toLowerCase()
     ) ||
     found[0] ||
@@ -616,53 +478,42 @@ async function findRobloxUser(
   );
 }
 
-/*
-=========================================================
-ROBLOX AVATAR
-=========================================================
-*/
+/* =========================================================
+   ROBLOX AVATAR
+   ========================================================= */
 
-async function findRobloxAvatar(
-  id
-) {
+async function findRobloxAvatar(id) {
   try {
-    const response =
-      await robloxFetch(
-        "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=" +
-          encodeURIComponent(id) +
-          "&size=150x150&format=Png&isCircular=false"
-      );
+    const response = await robloxFetch(
+      "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=" +
+        encodeURIComponent(id) +
+        "&size=150x150&format=Png&isCircular=false"
+    );
 
     if (!response.ok) {
       return "";
     }
 
-    const data =
-      await response.json();
+    const data = await response.json();
 
     return (
-      data?.data?.[0]
-        ?.imageUrl || ""
+      data?.data?.[0]?.imageUrl ||
+      ""
     );
   } catch {
     return "";
   }
 }
 
-/*
-=========================================================
-ROBLOX PROFILE
-=========================================================
-*/
+/* =========================================================
+   ROBLOX PROFILE
+   ========================================================= */
 
-async function findRobloxProfile(
-  id
-) {
-  const response =
-    await robloxFetch(
-      "https://users.roblox.com/v1/users/" +
-        encodeURIComponent(id)
-    );
+async function findRobloxProfile(id) {
+  const response = await robloxFetch(
+    "https://users.roblox.com/v1/users/" +
+      encodeURIComponent(id)
+  );
 
   if (!response.ok) {
     throw new Error(
@@ -673,16 +524,11 @@ async function findRobloxProfile(
   return response.json();
 }
 
-/*
-=========================================================
-USER LOOKUP
-=========================================================
-*/
+/* =========================================================
+   USER LOOKUP
+   ========================================================= */
 
-async function userLookup(
-  req,
-  res
-) {
+async function userLookup(req, res) {
   try {
     const username = clean(
       req.params.username
@@ -691,23 +537,17 @@ async function userLookup(
     if (!username) {
       return res.status(400).json({
         success: false,
-
-        message:
-          "Username required."
+        message: "Username required."
       });
     }
 
     const robloxUser =
-      await findRobloxUser(
-        username
-      );
+      await findRobloxUser(username);
 
     if (!robloxUser) {
       return res.status(404).json({
         success: false,
-
-        message:
-          "Roblox username not found."
+        message: "Roblox username not found."
       });
     }
 
@@ -718,9 +558,7 @@ async function userLookup(
 
     createOrUpdateUser({
       id: robloxUser.id,
-
       username: robloxUser.name,
-
       avatar
     });
 
@@ -764,11 +602,9 @@ app.get(
   userLookup
 );
 
-/*
-=========================================================
-VERIFICATION PHRASE
-=========================================================
-*/
+/* =========================================================
+   VERIFICATION
+   ========================================================= */
 
 function generatePhrase() {
   const words = [
@@ -794,16 +630,14 @@ function generatePhrase() {
   const first =
     words[
       Math.floor(
-        Math.random() *
-          words.length
+        Math.random() * words.length
       )
     ];
 
   const second =
     words[
       Math.floor(
-        Math.random() *
-          words.length
+        Math.random() * words.length
       )
     ];
 
@@ -823,38 +657,25 @@ function generatePhrase() {
   );
 }
 
-app.get(
-  "/create",
-  (req, res) => {
-    res.json({
-      success: true,
+app.get("/create", (req, res) => {
+  res.json({
+    success: true,
+    phrase: generatePhrase()
+  });
+});
 
-      phrase: generatePhrase()
-    });
-  }
-);
+app.get("/api/create", (req, res) => {
+  res.json({
+    success: true,
+    phrase: generatePhrase()
+  });
+});
 
-app.get(
-  "/api/create",
-  (req, res) => {
-    res.json({
-      success: true,
+/* =========================================================
+   ROBLOX BIO VERIFICATION
+   ========================================================= */
 
-      phrase: generatePhrase()
-    });
-  }
-);
-
-/*
-=========================================================
-ROBLOX BIO VERIFICATION
-=========================================================
-*/
-
-async function verifyRobloxBio(
-  req,
-  res
-) {
+async function verifyRobloxBio(req, res) {
   try {
     const username = clean(
       req.body?.username
@@ -867,21 +688,17 @@ async function verifyRobloxBio(
     if (!username || !phrase) {
       return res.status(400).json({
         success: false,
-
         message:
           "Username and phrase are required."
       });
     }
 
     const robloxUser =
-      await findRobloxUser(
-        username
-      );
+      await findRobloxUser(username);
 
     if (!robloxUser) {
       return res.status(404).json({
         success: false,
-
         message:
           "Roblox username not found."
       });
@@ -907,7 +724,7 @@ async function verifyRobloxBio(
         success: false,
 
         message:
-          "Verification phrase was not found in your Roblox About/Bio. Add it exactly, save your profile, then try again."
+          "Verification phrase was not found in your Roblox About/Bio."
       });
     }
 
@@ -969,16 +786,11 @@ app.post(
   verifyRobloxBio
 );
 
-/*
-=========================================================
-ACCOUNT
-=========================================================
-*/
+/* =========================================================
+   ACCOUNT
+   ========================================================= */
 
-async function accountHandler(
-  req,
-  res
-) {
+async function accountHandler(req, res) {
   try {
     const id = clean(
       req.params.robloxId
@@ -987,18 +799,11 @@ async function accountHandler(
     if (!/^\d+$/.test(id)) {
       return res.status(400).json({
         success: false,
-
-        message:
-          "Invalid Roblox ID."
+        message: "Invalid Roblox ID."
       });
     }
 
     let user = getUser(id);
-
-    /*
-     * If the user isn't in memory,
-     * retrieve their public Roblox profile.
-     */
 
     if (!user) {
       const profile =
@@ -1033,11 +838,9 @@ async function accountHandler(
 
         balance: user.balance || 0,
 
-        wagered:
-          user.wagered || 0,
+        wagered: user.wagered || 0,
 
-        profit:
-          user.profit || 0,
+        profit: user.profit || 0,
 
         coinflips:
           user.coinflips || 0,
@@ -1060,7 +863,6 @@ async function accountHandler(
 
     res.status(404).json({
       success: false,
-
       message:
         "Account could not be loaded."
     });
@@ -1077,11 +879,9 @@ app.get(
   accountHandler
 );
 
-/*
-=========================================================
-CHAT
-=========================================================
-*/
+/* =========================================================
+   CHAT
+   ========================================================= */
 
 function hasLink(text) {
   return /(?:https?:\/\/|www\.|discord\.gg\/|discord\.com\/invite\/)/i.test(
@@ -1113,10 +913,7 @@ app.get(
   }
 );
 
-function createChatMessage(
-  req,
-  res
-) {
+function createChatMessage(req, res) {
   const robloxId = clean(
     req.body?.robloxId ||
       req.body?.userId
@@ -1137,34 +934,27 @@ function createChatMessage(
   if (!robloxId || !username) {
     return res.status(401).json({
       success: false,
-
-      message:
-        "Sign in to chat."
+      message: "Sign in to chat."
     });
   }
 
   if (!message) {
     return res.status(400).json({
       success: false,
-
-      message:
-        "Message is empty."
+      message: "Message is empty."
     });
   }
 
   if (message.length > 250) {
     return res.status(400).json({
       success: false,
-
-      message:
-        "Message is too long."
+      message: "Message is too long."
     });
   }
 
   if (hasLink(message)) {
     return res.status(400).json({
       success: false,
-
       message:
         "Links are not allowed in chat."
     });
@@ -1199,7 +989,6 @@ function createChatMessage(
 
   res.json({
     success: true,
-
     message: chatMessage
   });
 }
@@ -1214,14 +1003,13 @@ app.post(
   createChatMessage
 );
 
-app.get(
-  "/chat/online",
-  (req, res) => {
-    const cutoff =
-      Date.now() -
-      5 * 60 * 1000;
+function onlineHandler(req, res) {
+  const cutoff =
+    Date.now() -
+    5 * 60 * 1000;
 
-    const online = new Set(
+  const online =
+    new Set(
       chatMessages
         .filter(
           message =>
@@ -1236,66 +1024,43 @@ app.get(
         )
     );
 
-    res.json({
-      success: true,
+  res.json({
+    success: true,
 
-      online: online.size,
+    online: online.size,
 
-      count: online.size,
+    count: online.size,
 
-      onlineCount: online.size
-    });
-  }
+    onlineCount: online.size
+  });
+}
+
+app.get(
+  "/chat/online",
+  onlineHandler
 );
 
 app.get(
   "/api/chat/online",
-  (req, res) => {
-    const cutoff =
-      Date.now() -
-      5 * 60 * 1000;
-
-    const online = new Set(
-      chatMessages
-        .filter(
-          message =>
-            Number(
-              message.createdAt
-            ) >= cutoff
-        )
-        .map(
-          message =>
-            message.robloxId ||
-            message.username
-        )
-    );
-
-    res.json({
-      success: true,
-
-      online: online.size,
-
-      count: online.size,
-
-      onlineCount: online.size
-    });
-  }
+  onlineHandler
 );
 
-/*
-=========================================================
-COINFLIPS
-=========================================================
-*/
+/* =========================================================
+   COINFLIPS
+   ========================================================= */
+
+function getActiveCoinflips() {
+  return coinflips.filter(
+    flip =>
+      flip.status === "active"
+  );
+}
 
 app.get(
   "/coinflips",
   (req, res) => {
     const active =
-      coinflips.filter(
-        flip =>
-          flip.status === "active"
-      );
+      getActiveCoinflips();
 
     const totalValue =
       active.reduce(
@@ -1322,24 +1087,16 @@ app.get(
 app.get(
   "/api/coinflips",
   (req, res) => {
-    const active =
-      coinflips.filter(
-        flip =>
-          flip.status === "active"
-      );
-
     res.json({
       success: true,
 
-      coinflips: active
+      coinflips:
+        getActiveCoinflips()
     });
   }
 );
 
-function createCoinflip(
-  req,
-  res
-) {
+function createCoinflip(req, res) {
   const username = clean(
     req.body?.username
   );
@@ -1385,17 +1142,9 @@ function createCoinflip(
   if (!name) {
     return res.status(400).json({
       success: false,
-
-      message:
-        "Select a pet."
+      message: "Select a pet."
     });
   }
-
-  /*
-   * Always use the server's value list
-   * instead of trusting client-supplied
-   * pet value.
-   */
 
   const serverPet =
     getPets().find(
@@ -1435,7 +1184,8 @@ function createCoinflip(
   const flip = {
     id: makeId(),
 
-    username: user.username,
+    username:
+      user.username,
 
     userId: user.id,
 
@@ -1445,13 +1195,17 @@ function createCoinflip(
       user.avatar ||
       "/logo.png",
 
-    petName: serverPet.name,
+    petName:
+      serverPet.name,
 
-    petValue: serverPet.value,
+    petValue:
+      serverPet.value,
 
-    value: serverPet.value,
+    value:
+      serverPet.value,
 
-    image: serverPet.image,
+    image:
+      serverPet.image,
 
     side,
 
@@ -1468,7 +1222,6 @@ function createCoinflip(
 
   res.status(201).json({
     success: true,
-
     coinflip: flip
   });
 }
@@ -1483,16 +1236,11 @@ app.post(
   createCoinflip
 );
 
-/*
-=========================================================
-LEADERBOARD
-=========================================================
-*/
+/* =========================================================
+   LEADERBOARD
+   ========================================================= */
 
-function leaderboardHandler(
-  req,
-  res
-) {
+function leaderboardHandler(req, res) {
   const leaderboard =
     Array.from(
       users.values()
@@ -1524,7 +1272,6 @@ function leaderboardHandler(
 
   res.json({
     success: true,
-
     users: leaderboard
   });
 }
@@ -1539,21 +1286,13 @@ app.get(
   leaderboardHandler
 );
 
-/*
-=========================================================
-STATUS
-=========================================================
-*/
+/* =========================================================
+   STATUS
+   ========================================================= */
 
-function statusHandler(
-  req,
-  res
-) {
+function statusHandler(req, res) {
   const active =
-    coinflips.filter(
-      flip =>
-        flip.status === "active"
-    );
+    getActiveCoinflips();
 
   res.json({
     success: true,
@@ -1587,130 +1326,80 @@ app.get(
   statusHandler
 );
 
-/*
-=========================================================
-STATIC FRONTEND
+/* =========================================================
+   OPTIONAL FRONTEND SERVING
+   =========================================================
+   
+   Your Cloudflare frontend does NOT depend on this.
+   
+   This code safely checks whether public/index.html exists
+   instead of assuming it does.
+   ========================================================= */
 
-Railway backend can also serve frontend
-if needed.
-=========================================================
-*/
-
-if (
-  !fs.existsSync(PUBLIC_DIR)
-) {
-  console.error(
-    "PUBLIC DIRECTORY DOES NOT EXIST:",
+if (fs.existsSync(PUBLIC_DIR)) {
+  console.log(
+    "PUBLIC DIRECTORY FOUND:",
     PUBLIC_DIR
+  );
+
+  app.use(
+    express.static(PUBLIC_DIR)
+  );
+} else {
+  console.log(
+    "No public directory found. API-only mode."
   );
 }
 
-app.use(
-  express.static(
-    PUBLIC_DIR,
-    {
-      index: "index.html"
-    }
-  )
-);
+app.get("/", (req, res) => {
+  const indexPath =
+    path.join(
+      PUBLIC_DIR,
+      "index.html"
+    );
 
-/*
-=========================================================
-ROOT
-=========================================================
-*/
-
-app.get(
-  "/",
-  (req, res) => {
-    const indexPath =
-      path.join(
-        PUBLIC_DIR,
-        "index.html"
-      );
-
-    if (
-      !fs.existsSync(indexPath)
-    ) {
-      return res
-        .status(500)
-        .send(
-          "public/index.html not found. Check your repository structure."
-        );
-    }
-
-    res.sendFile(indexPath);
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
   }
-);
 
-/*
-=========================================================
-SPA FALLBACK
+  res.json({
+    success: true,
 
-Do NOT use app.get("*") with newer
-Express versions.
-=========================================================
-*/
+    server: "ADMFLIP backend online",
 
-app.use(
-  (req, res, next) => {
-    const apiPrefixes = [
-      "/api/",
-      "/pets",
-      "/user/",
-      "/account/",
-      "/chat/",
-      "/coinflips",
-      "/leaderboard",
-      "/status",
+    message:
+      "API is running. Frontend is hosted separately on Cloudflare.",
+
+    endpoints: [
       "/health",
-      "/debug-values",
-      "/check",
-      "/create"
-    ];
+      "/pets",
+      "/coinflips",
+      "/chat/messages",
+      "/chat/online",
+      "/status"
+    ]
+  });
+});
 
-    const isApiRoute =
-      apiPrefixes.some(
-        prefix =>
-          req.path === prefix ||
-          req.path.startsWith(
-            prefix
-          )
-      );
+/* =========================================================
+   404
+   ========================================================= */
 
-    if (isApiRoute) {
-      return res.status(404).json({
-        success: false,
+app.use(
+  (req, res) => {
+    res.status(404).json({
+      success: false,
 
-        error: "Route not found.",
+      error: "Route not found.",
 
-        path: req.path
-      });
-    }
-
-    const indexPath =
-      path.join(
-        PUBLIC_DIR,
-        "index.html"
-      );
-
-    if (
-      fs.existsSync(indexPath)
-    ) {
-      return res.sendFile(
-        indexPath
-      );
-    }
-
-    next();
+      path: req.path
+    });
   }
 );
 
-/*
-=========================================================
-ERROR HANDLER
-=========================================================
-*/
+/* =========================================================
+   ERROR HANDLER
+   ========================================================= */
 
 app.use(
   (
@@ -1737,11 +1426,9 @@ app.use(
   }
 );
 
-/*
-=========================================================
-START
-=========================================================
-*/
+/* =========================================================
+   START
+   ========================================================= */
 
 app.listen(
   PORT,
@@ -1752,7 +1439,7 @@ app.listen(
     );
 
     console.log(
-      "ADMFLIP backend started"
+      "ADMFLIP BACKEND STARTED"
     );
 
     console.log(
@@ -1766,11 +1453,6 @@ app.listen(
     );
 
     console.log(
-      "Public:",
-      PUBLIC_DIR
-    );
-
-    console.log(
       "Values:",
       VALUES_FILE
     );
@@ -1781,21 +1463,8 @@ app.listen(
     );
 
     console.log(
-      "Frontend:",
-      path.join(
-        PUBLIC_DIR,
-        "index.html"
-      )
-    );
-
-    console.log(
-      "Railway backend:",
-      "https://admflip-beta-production-d1c4.up.railway.app"
-    );
-
-    console.log(
       "CORS:",
-      "https://admflip-beta.vyxlez.workers.dev"
+      allowedOrigins
     );
 
     console.log(
