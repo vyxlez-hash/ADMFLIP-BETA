@@ -1616,22 +1616,28 @@ if (!db.chatMessages.some((m) => m.id === "welcome")) {
     createdAt: Date.now()
   });
 }
-
-if (process.env.TELEGRAM_BOT_TOKEN) {
-  console.log("[TELEGRAM] Starting bot...");
-
-  try {
-    require("./bot.js");
-    console.log("[TELEGRAM] bot.js loaded.");
-  } catch (error) {
-    console.error("[TELEGRAM] Could not load bot.js:", error);
-  }
-} else {
-  console.log("[TELEGRAM] TELEGRAM_BOT_TOKEN is missing.");
-}
 persistNow();
 
 app.listen(PORT, "0.0.0.0", () => {
+   /* =========================================================
+   TELEGRAM BOT
+========================================================= */
+
+console.log("[TELEGRAM] Checking bot configuration...");
+
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+  console.log("[TELEGRAM] TELEGRAM_BOT_TOKEN is missing.");
+} else {
+  console.log("[TELEGRAM] TELEGRAM_BOT_TOKEN detected.");
+
+  try {
+    require("./bot.js");
+    console.log("[TELEGRAM] bot.js loaded successfully.");
+  } catch (error) {
+    console.error("[TELEGRAM] Failed to load bot.js:");
+    console.error(error);
+  }
+}
   console.log("========================================");
   console.log("ADMFLIP backend v2.2.0-fixed started");
   console.log("Port:", PORT);
