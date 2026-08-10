@@ -1,223 +1,146 @@
 (() => {
-"use strict";
+  "use strict";
 
-/*
+  const TOKEN_KEY = "admflip_token";
+  const BACKUP_KEY = "admflip_session_backup";
 
-* ADMFLIP SESSION FIX
-*
-* Put this BEFORE app.js:
-*
-* <script src="/session-fix.js"></script>
-* <script src="/app.js"></script>
-*
-* This keeps a backup of admflip_token in sessionStorage.
-* If localStorage loses the token during a page refresh,
-* it restores it before app.js starts.
-*
-* It still allows the normal Logout button to actually log out.
-  */
+  function safeGetLocalToken() {
+    try {
+      return localStorage.getItem(TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  }
 
-const TOKEN_KEY = "admflip_token";
-const BACKUP_KEY = "admflip_session_backup";
+  function safeGetBackupToken() {
+    try {
+      return sessionStorage.getItem(BACKUP_KEY);
+    } catch {
+      return null;
+    }
+  }
 
-function getLocalToken() {
-try {
-return localStorage.getItem(TOKEN_KEY);
-} catch {
-return null;
-}
-}
+  function safeSaveBackup(token) {
+    if (!token) return;
+    try {
+      sessionStorage.setItem(BACKUP_KEY, token);
+    } catch {}
+  }
 
-function getBackupToken() {
-try {
-return sessionStorage.getItem(BACKUP_KEY);
-} catch {
-return null;
-}
-}
+  function restoreToken() {
+    const current = safeGetLocalToken();
 
-function saveBackup(token) {
-if (!token) return;
+    if (current) {
+      safeSaveBackup(current);
+      return current;
+    }
 
-```
-try {
-  sessionStorage.setItem(BACKUP_KEY, token);
-} catch {}
-```
+    const backup = safeGetBackupToken();
 
-}
+    if (backup) {
+      try {
+        localStorage.setItem(TOKEN_KEY, backup);
+        console.log("[SESSION FIX] Restored ADMFLIP login session.");
+        return backup;
+      } catch {}
+    }
 
-function restoreToken() {
-const current = getLocalToken();
+    return null;
+  }
 
-```
-if (current) {
-  saveBackup(current);
-  return current;
-}
-
-const backup = getBackupToken();
-
-if (backup) {
-  try {
-    localStorage.setItem(TOKEN_KEY, backup);
-    console.log("[SESSION FIX] Restored ADMFLIP login session.");
-    return backup;
-  } catch {}
-}
-
-return null;
-```
-
-}
-
-/*
-
-* Restore BEFORE app.js loads.
-  */
+  // Restore immediately before app.js runs (this file should be included before app.js)
   restoreToken();
 
-/*
-
-* Keep the backup synchronized whenever app.js stores
-* a newly-issued login token.
-  */
+  // Keep the backup synchronized whenever app.js stores a new login token
   try {
-  const originalSetItem = localStorage.setItem.bind(localStorage);
+    const originalSetItem = localStorage.setItem.bind(localStorage);
 
-```
-localStorage.setItem = function (key, value) {
-```
+    localStorage.setItem = function (key, value) {
+      if (key === TOKEN_KEY && value) {
+        safeSaveBackup(String(value));
+      }
 
-```
-  if (key === TOKEN_KEY && value) {
-    saveBackup(String(value));
-  }
-
-  return originalSetItem(key, value);
-};
-```
-
-} catch {}
-
-/*
-
-* app.js removes admflip_token when logout() is called.
-*
-* We allow that removal when the actual Logout button was
-* clicked, but prevent accidental token loss from other code.
-  */
-
-let realLogout = false;
-
-function markRealLogout() {
-realLogout = true;
-
-```
-/*
- * Give app.js enough time to execute its async logout()
- * and remove the token.
- */
-setTimeout(() => {
-  realLogout = false;
-  try {
-    sessionStorage.removeItem(BACKUP_KEY);
+      return originalSetItem(key, value);
+    };
   } catch {}
-}, 2500);
-```
 
-}
+  // Track whether the user intentionally clicked logout
+  let realLogout = false;
 
-document.addEventListener(
-"click",
-(event) => {
-const target = event.target;
+  function markRealLogout() {
+    realLogout = true;
 
-```
-  if (
-    target &&
-    (
-      target.id === "logoutBtn" ||
-      target.closest?.("#logoutBtn")
-    )
-  ) {
-    markRealLogout();
-  }
-},
-true
-```
-
-);
-
-/*
-
-* Protect against accidental removal of the token.
-  */
-  try {
-  const originalRemoveItem =
-  localStorage.removeItem.bind(localStorage);
-
-```
-localStorage.removeItem = function (key) {
-```
-
-```
-  if (key === TOKEN_KEY) {
-    if (realLogout) {
+    // Give app.js time to run its logout logic and then clear the backup
+    setTimeout(() => {
+      realLogout = false;
       try {
         sessionStorage.removeItem(BACKUP_KEY);
       } catch {}
-
-      return originalRemoveItem(key);
-    }
-
-    const backup = getBackupToken();
-
-    if (backup) {
-      console.warn(
-        "[SESSION FIX] Prevented accidental ADMFLIP token removal."
-      );
-
-      try {
-        originalSetItemSafe(TOKEN_KEY, backup);
-      } catch {}
-
-      return;
-    }
+    }, 2500);
   }
 
-  return originalRemoveItem(key);
-};
-```
+  // Detect clicks on the logout button (or elements inside it)
+  document.addEventListener(
+    "click",
+    (event) => {
+      try {
+        const target = event.target;
+        if (!target) return;
 
-} catch {}
+        if (
+          target.id === "logoutBtn" ||
+          (typeof target.closest === "function" && target.closest("#logoutBtn"))
+        ) {
+          markRealLogout();
+        }
+      } catch {}
+    },
+    true
+  );
 
-function originalSetItemSafe(key, value) {
-try {
-localStorage.setItem(key, value);
-} catch {}
-}
+  // Prevent accidental removal of the token from localStorage
+  try {
+    const originalRemoveItem = localStorage.removeItem.bind(localStorage);
 
-/*
+    localStorage.removeItem = function (key) {
+      if (key === TOKEN_KEY) {
+        if (realLogout) {
+          try {
+            sessionStorage.removeItem(BACKUP_KEY);
+          } catch {}
 
-* Safety check after the page has loaded.
-* If something removed the token during startup,
-* restore it from the session backup.
-  */
+          return originalRemoveItem(key);
+        }
+
+        const backup = safeGetBackupToken();
+
+        if (backup) {
+          console.warn("[SESSION FIX] Prevented accidental ADMFLIP token removal.");
+
+          try {
+            // restore token silently
+            localStorage.setItem(TOKEN_KEY, backup);
+          } catch {}
+
+          return;
+        }
+      }
+
+      return originalRemoveItem(key);
+    };
+  } catch {}
+
+  // Safety: if something removed the token during startup, try to restore after load
   window.addEventListener("load", () => {
-  setTimeout(() => {
-  restoreToken();
-  }, 50);
+    setTimeout(() => {
+      restoreToken();
+    }, 50);
   });
 
-/*
-
-* pageshow fires when returning to a page from browser
-* back/forward cache as well.
-  */
+  // pageshow covers bfcache restores
   window.addEventListener("pageshow", () => {
-  restoreToken();
+    restoreToken();
   });
 
-console.log("[SESSION FIX] Loaded.");
+  console.log("[SESSION FIX] Loaded.");
 })();
