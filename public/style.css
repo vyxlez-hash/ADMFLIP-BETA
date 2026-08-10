@@ -207,7 +207,6 @@ button:disabled {
   }
 }
 
-
 /* =========================================================
    HEADER
    ========================================================= */
@@ -215,7 +214,6 @@ button:disabled {
 header {
   position: sticky;
   top: 0;
-
   z-index: 1000;
 
   width: 100%;
@@ -226,13 +224,18 @@ header {
 
   padding: 0 25px;
 
-  background: #050505;
+  background: #000000;
 
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #8b5cf6;
 
   box-shadow:
-    0 5px 25px rgba(0, 0, 0, 0.35);
+    0 5px 25px rgba(0, 0, 0, 0.7);
 }
+
+
+/* =========================================================
+   SITE LOGO
+   ========================================================= */
 
 .brand {
   display: flex;
@@ -241,26 +244,340 @@ header {
   width: 130px;
   height: 70px;
 
-  color: white;
+  color: #ffffff;
   text-decoration: none;
 
   flex-shrink: 0;
 }
 
 .logo {
+  display: block;
+
   width: 112px;
   height: 62px;
 
   object-fit: contain;
 
-  border-radius: 10px;
-
   background: transparent;
 
-  filter:
-    drop-shadow(0 0 12px rgba(139, 92, 246, 0.25));
+  border: 0;
+
+  filter: none;
+
+  opacity: 1;
 }
 
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+.nav {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  margin-left: auto;
+  margin-right: 20px;
+}
+
+.nav-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  min-height: 42px;
+
+  padding: 10px 15px;
+
+  background: #000000 !important;
+
+  color: #ffffff !important;
+
+  border: 1px solid #8b5cf6 !important;
+
+  border-radius: 9px;
+
+  font-weight: 800;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: #000000 !important;
+
+  color: #ffffff !important;
+
+  border-color: #a78bfa !important;
+
+  box-shadow:
+    0 0 12px rgba(139, 92, 246, 0.25);
+}
+
+.nav-item:active {
+  transform: scale(0.98);
+}
+
+
+/* =========================================================
+   HEADER ICONS
+   ========================================================= */
+
+.nav-icon {
+  color: #ffffff !important;
+
+  font-size: 16px;
+
+  line-height: 1;
+
+  opacity: 1;
+}
+
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {
+  color: #ffffff !important;
+}
+
+.online-dot-small {
+  display: inline-block;
+
+  width: 7px;
+  height: 7px;
+
+  background: #39d98a;
+
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 7px rgba(57, 217, 138, 0.6);
+}
+
+
+/* =========================================================
+   ACCOUNT
+   ========================================================= */
+
+.user-box {
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+}
+
+.account-box {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 4px 7px;
+
+  background: #000000 !important;
+
+  border: 1px solid #8b5cf6 !important;
+
+  border-radius: 999px;
+}
+
+.account-avatar {
+  width: 31px;
+  height: 31px;
+
+  object-fit: cover;
+
+  border-radius: 50%;
+
+  border: 1px solid #8b5cf6;
+}
+
+.account-box span {
+  color: #ffffff;
+
+  font-size: 0.88rem;
+
+  font-weight: 800;
+}
+
+.account-menu-btn {
+  border: 1px solid #8b5cf6;
+
+  background: #000000;
+
+  color: #ffffff;
+
+  padding: 7px 10px;
+
+  border-radius: 7px;
+
+  font-size: 0.78rem;
+
+  font-weight: 700;
+}
+
+.account-menu-btn:hover {
+  background: #000000;
+
+  color: #ffffff;
+
+  border-color: #a78bfa;
+
+  box-shadow:
+    0 0 10px rgba(139, 92, 246, 0.25);
+}
+
+
+/* =========================================================
+   ROBLOX LOGIN BUTTON
+   ========================================================= */
+
+.login-button,
+.roblox-login-action {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 11px 16px;
+
+  background: #000000 !important;
+
+  color: #ffffff !important;
+
+  border: 1px solid #8b5cf6 !important;
+
+  border-radius: 9px;
+
+  font-weight: 850;
+
+  box-shadow: none;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.login-button:hover,
+.roblox-login-action:hover {
+  background: #000000 !important;
+
+  color: #ffffff !important;
+
+  border-color: #a78bfa !important;
+
+  box-shadow:
+    0 0 14px rgba(139, 92, 246, 0.28);
+}
+
+.login-button img {
+  width: 22px;
+  height: 22px;
+
+  object-fit: contain;
+
+  filter: none;
+}
+
+
+/* =========================================================
+   ALL SITE BUTTONS
+   ========================================================= */
+
+.btn {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  background: #000000 !important;
+
+  color: #ffffff !important;
+
+  border: 1px solid #8b5cf6 !important;
+
+  border-radius: 9px;
+
+  padding: 11px 18px;
+
+  font-weight: 850;
+
+  box-shadow: none;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.08s ease;
+}
+
+.btn:hover {
+  background: #000000 !important;
+
+  color: #ffffff !important;
+
+  border-color: #a78bfa !important;
+
+  box-shadow:
+    0 0 14px rgba(139, 92, 246, 0.25);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+
+/* Purple class ALSO stays black */
+.btn.purple {
+  background: #000000 !important;
+
+  color: #ffffff !important;
+
+  border-color: #8b5cf6 !important;
+
+  box-shadow: none;
+}
+
+.btn.purple:hover {
+  background: #000000 !important;
+
+  color: #ffffff !important;
+
+  border-color: #a78bfa !important;
+
+  box-shadow:
+    0 0 16px rgba(139, 92, 246, 0.3);
+}
+
+.full-width {
+  width: 100%;
+}
+
+
+/* =========================================================
+   ICONS INSIDE BUTTONS
+   ========================================================= */
+
+button i,
+button .nav-icon {
+  color: #ffffff !important;
+}
+
+button:hover i,
+button:hover .nav-icon {
+  color: #ffffff !important;
+}
 
 /* =========================================================
    NAV
