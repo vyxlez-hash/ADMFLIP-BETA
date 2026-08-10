@@ -2031,28 +2031,3 @@ header .right,
 #loginBtn::after {
   content: none !important;
 }
-
-/* Keep buttons clean */
-#topChatButton,
-#loginBtn {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 8px !important;
-}
-@media (min-width: 700px) {
-  header > div,
-  .topbar > div,
-  .navbar > div {
-    display: grid !important;
-    grid-template-columns: 1fr auto 1fr !important;
-    align-items: center !important;
-  }
-
-  header nav,
-  .topbar nav,
-  .navbar nav {
-    grid-column: 2 !important;
-    justify-self: center !important;
-  }
-}
