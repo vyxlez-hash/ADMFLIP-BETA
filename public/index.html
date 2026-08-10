@@ -17,7 +17,7 @@
 
   <link rel="stylesheet" href="/style.css">
 
-  <!-- Font Awesome / icon library if already used by your project -->
+  <!-- Font Awesome / icon library -->
   <link
     rel="stylesheet"
     href="https://cdn-uicons.flaticon.com/3.0.0/uicons-regular-rounded/css/uicons-regular-rounded.css"
@@ -315,99 +315,34 @@
       </div>
 
 
-      <!-- COINFLIP CONTENT -->
+      <!-- OPEN COINFLIPS -->
 
-      <div class="coinflip-layout">
+      <section class="panel">
 
-        <!-- CREATE -->
+        <div class="section-title-row">
 
-        <section class="panel create-panel">
+          <div>
 
-          <div class="eyebrow">
-            CREATE
-          </div>
-
-          <h2>
-            Create a Coinflip
-          </h2>
-
-          <p class="muted">
-            Select one of your pets and choose your side.
-          </p>
-
-          <button
-            type="button"
-            id="createCoinflipBtn"
-            class="btn purple full-width"
-          >
-            Create Coinflip
-          </button>
-
-
-          <div
-            id="selectedPetPreview"
-            class="selected-preview hidden"
-          ></div>
-
-        </section>
-
-
-        <!-- OPEN COINFLIPS -->
-
-        <section class="panel">
-
-          <div class="section-title-row">
-
-            <div>
-
-              <div class="eyebrow">
-                LIVE
-              </div>
-
-              <h2>
-                Open Coinflips
-              </h2>
-
+            <div class="eyebrow">
+              LIVE
             </div>
 
-          </div>
-
-
-          <div
-            id="coinflips"
-            class="coinflip-list"
-          >
-
-            <div class="loading">
-              Loading coinflips...
-            </div>
+            <h2>
+              Open Coinflips
+            </h2>
 
           </div>
 
-        </section>
-
-      </div>
-
-
-      <!-- HISTORY -->
-
-      <section class="panel history-panel">
-
-        <div class="eyebrow">
-          ACCOUNT
         </div>
 
-        <h2>
-          My History
-        </h2>
 
         <div
-          id="history"
-          class="history-list"
+          id="coinflips"
+          class="coinflip-list"
         >
 
           <div class="loading">
-            Login to see your history.
+            Loading coinflips...
           </div>
 
         </div>
@@ -539,6 +474,54 @@
     </section>
 
   </main>
+
+
+  <!-- ===================================================
+       QUICK ACTIONS (RIGHT SIDE)
+  =================================================== -->
+
+  <div
+    id="quickActions"
+    class="quick-actions"
+    aria-label="Quick actions"
+  >
+
+    <button
+      type="button"
+      id="quickCreateBtn"
+      class="quick-action-btn primary"
+    >
+
+      <i
+        class="fi fi-rr-plus"
+        aria-hidden="true"
+      ></i>
+
+      <span>
+        Create
+      </span>
+
+    </button>
+
+
+    <button
+      type="button"
+      id="quickHistoryBtn"
+      class="quick-action-btn"
+    >
+
+      <i
+        class="fi fi-rr-clock"
+        aria-hidden="true"
+      ></i>
+
+      <span>
+        History
+      </span>
+
+    </button>
+
+  </div>
 
 
   <!-- ===================================================
@@ -838,6 +821,58 @@
 
 
   <!-- ===================================================
+       HISTORY MODAL
+  =================================================== -->
+
+  <div
+    id="historyModal"
+    class="modal hidden"
+  >
+
+    <div class="modal-box large-modal">
+
+      <button
+        type="button"
+        id="closeHistoryModal"
+        class="modal-close"
+        aria-label="Close history"
+      >
+        ×
+      </button>
+
+
+      <div class="eyebrow">
+        ACCOUNT
+      </div>
+
+
+      <h2>
+        My History
+      </h2>
+
+
+      <p class="muted">
+        Your recent coinflips.
+      </p>
+
+
+      <div
+        id="historyList"
+        class="history-list"
+      >
+
+        <div class="loading">
+          Login to see your history.
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ===================================================
        TOAST
   =================================================== -->
 
@@ -848,13 +883,8 @@
   ></div>
 
 
-  <!-- YOUR EXISTING JAVASCRIPT -->
+  <!-- JAVASCRIPT -->
   <script src="/script.js"></script>
 
 </body>
 </html>
-:::
-
-**Important:** put `logo.png` and `roblox.png` directly in your site's `public` folder if your server serves `/public` as the root. The CSS is now valid CSS — especially the broken `\:` selectors, `\#username`, escaped comments, and the accidental triple-backtick sections are fixed.
-
-If your actual JS file is named `app.js`/`main.js` instead of `script.js`, change only the last `<script src="/script.js">` line to your real filename.
