@@ -25,23 +25,25 @@
 
   --header-height: 78px;
 
-  /* Chat DOES NOT resize the website */
+  /* Chat overlays the website */
   --chat-width: 360px;
 }
 
+
 /* =========================================================
    BASE
-========================================================= */
+   ========================================================= */
 
 html,
 body {
   width: 100%;
   min-height: 100%;
-  background: #050505;
+  background: var(--bg);
 }
 
 body {
   color: var(--text);
+
   font-family:
     Inter,
     "Segoe UI",
@@ -85,21 +87,25 @@ button:disabled {
 
 .eyebrow {
   color: var(--purple-light);
+
   font-size: 0.7rem;
   font-weight: 900;
+
   letter-spacing: 1.5px;
   text-transform: uppercase;
+
   margin-bottom: 7px;
 }
 
+
 /* =========================================================
    LOADING SCREEN
-   IMPORTANT: logo is /logo.png
-========================================================= */
+   ========================================================= */
 
 .loading-screen {
   position: fixed;
   inset: 0;
+
   z-index: 99999;
 
   display: flex;
@@ -116,10 +122,6 @@ button:disabled {
     visibility 0.25s ease;
 }
 
-/*
-   If JS has a problem, don't permanently trap the user
-   on the loading screen.
-*/
 .loading-screen.is-hidden {
   opacity: 0;
   visibility: hidden;
@@ -149,7 +151,8 @@ button:disabled {
   filter:
     drop-shadow(0 0 20px rgba(139, 92, 246, 0.35));
 
-  animation: loading-logo-in 0.45s ease-out both;
+  animation:
+    loading-logo-in 0.45s ease-out both;
 }
 
 .loading-line {
@@ -177,6 +180,9 @@ button:disabled {
 
   box-shadow:
     0 0 16px rgba(139, 92, 246, 0.65);
+
+  animation:
+    loading-progress 1.15s ease-in-out infinite;
 }
 
 @keyframes loading-logo-in {
@@ -191,13 +197,25 @@ button:disabled {
   }
 }
 
+@keyframes loading-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+
 /* =========================================================
    HEADER
-========================================================= */
+   ========================================================= */
 
 header {
   position: sticky;
   top: 0;
+
   z-index: 1000;
 
   width: 100%;
@@ -225,6 +243,8 @@ header {
 
   color: white;
   text-decoration: none;
+
+  flex-shrink: 0;
 }
 
 .logo {
@@ -241,9 +261,10 @@ header {
     drop-shadow(0 0 12px rgba(139, 92, 246, 0.25));
 }
 
+
 /* =========================================================
    NAV
-========================================================= */
+   ========================================================= */
 
 .nav {
   display: flex;
@@ -258,6 +279,7 @@ header {
 .nav-item {
   display: inline-flex;
   align-items: center;
+
   gap: 7px;
 
   border: 1px solid transparent;
@@ -303,19 +325,24 @@ header {
   border-radius: 50%;
 }
 
+
 /* =========================================================
    ACCOUNT
-========================================================= */
+   ========================================================= */
 
 .user-box {
   display: flex;
   align-items: center;
+
   gap: 9px;
+
+  flex-shrink: 0;
 }
 
 .account-box {
   display: flex;
   align-items: center;
+
   gap: 8px;
 
   padding: 4px 7px;
@@ -334,9 +361,19 @@ header {
   object-fit: cover;
 
   border-radius: 50%;
+
+  background: #171717;
 }
 
-.account-box span {
+.account-box > span {
+  max-width: 120px;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
   font-size: 0.88rem;
   font-weight: 800;
 }
@@ -361,9 +398,10 @@ header {
   background: #181818;
 }
 
+
 /* =========================================================
    LOGIN
-========================================================= */
+   ========================================================= */
 
 .login-button,
 .roblox-login-action {
@@ -402,16 +440,13 @@ header {
 
   object-fit: contain;
 
-  /*
-    Don't force the Roblox image to white.
-    This also prevents weird logo rendering.
-  */
   filter: none;
 }
 
+
 /* =========================================================
    BUTTONS
-========================================================= */
+   ========================================================= */
 
 .btn {
   border-radius: 9px;
@@ -424,7 +459,8 @@ header {
 
   transition:
     filter 0.15s,
-    transform 0.08s;
+    transform 0.08s,
+    background 0.15s;
 }
 
 .btn:active {
@@ -452,11 +488,10 @@ header {
   width: 100%;
 }
 
+
 /* =========================================================
    MAIN
-   IMPORTANT:
-   chat opening NO LONGER changes main width
-========================================================= */
+   ========================================================= */
 
 main {
   width: min(1180px, calc(100% - 40px));
@@ -468,14 +503,10 @@ main {
   transition: none;
 }
 
-/*
-   REMOVE the old body.chat-open main rules completely.
-   Chat overlays the site instead.
-*/
 
 /* =========================================================
    PAGES
-========================================================= */
+   ========================================================= */
 
 .page {
   display: block;
@@ -503,9 +534,10 @@ main {
   margin-top: 5px;
 }
 
+
 /* =========================================================
    PANELS
-========================================================= */
+   ========================================================= */
 
 .panel {
   background: #0b0b0b;
@@ -527,9 +559,18 @@ main {
   margin-bottom: 8px;
 }
 
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 15px;
+}
+
+
 /* =========================================================
    STATS
-========================================================= */
+   ========================================================= */
 
 .stats-grid {
   display: grid;
@@ -555,6 +596,7 @@ main {
 .stat-label {
   display: flex;
   align-items: center;
+
   gap: 7px;
 
   color: #999;
@@ -577,9 +619,10 @@ main {
   font-size: 1.5rem;
 }
 
+
 /* =========================================================
    COINFLIP
-========================================================= */
+   ========================================================= */
 
 .coinflip-layout {
   display: grid;
@@ -611,7 +654,9 @@ main {
 
 .coinflip-list {
   display: flex;
+
   flex-direction: column;
+
   gap: 10px;
 }
 
@@ -630,6 +675,17 @@ main {
   border: 1px solid var(--border);
 
   border-radius: 11px;
+
+  transition:
+    border-color 0.15s,
+    transform 0.15s,
+    background 0.15s;
+}
+
+.coinflip-card:hover {
+  border-color: var(--purple-light);
+  background: #151515;
+  transform: translateY(-1px);
 }
 
 .coinflip-player {
@@ -649,6 +705,8 @@ main {
   object-fit: cover;
 
   border-radius: 10px;
+
+  background: #171717;
 }
 
 .coinflip-player strong {
@@ -671,6 +729,8 @@ main {
   align-items: center;
 
   gap: 8px;
+
+  min-width: 0;
 }
 
 .coinflip-pet img {
@@ -682,6 +742,8 @@ main {
 
 .coinflip-pet strong {
   color: var(--purple-light);
+
+  white-space: nowrap;
 }
 
 .coinflip-side {
@@ -707,15 +769,18 @@ main {
 
 .history-list {
   display: flex;
+
   flex-direction: column;
+
   gap: 8px;
 
   margin-top: 12px;
 }
 
+
 /* =========================================================
    VALUES
-========================================================= */
+   ========================================================= */
 
 .values-toolbar {
   display: flex;
@@ -742,6 +807,10 @@ main {
   padding: 11px 13px;
 
   outline: none;
+}
+
+.value-search::placeholder {
+  color: #666;
 }
 
 .value-search:focus {
@@ -779,7 +848,8 @@ main {
 
   transition:
     transform 0.15s,
-    box-shadow 0.15s;
+    box-shadow 0.15s,
+    border-color 0.15s;
 }
 
 .pet-card:hover {
@@ -787,6 +857,8 @@ main {
 
   box-shadow:
     0 10px 30px rgba(0, 0, 0, 0.5);
+
+  border-color: var(--purple-light);
 }
 
 .pet-card.selected {
@@ -853,9 +925,10 @@ main {
   font-size: 0.95rem;
 }
 
+
 /* =========================================================
    MODALS
-========================================================= */
+   ========================================================= */
 
 .modal {
   position: fixed;
@@ -934,9 +1007,10 @@ main {
   background: #111;
 }
 
+
 /* =========================================================
    LOGIN MODAL
-========================================================= */
+   ========================================================= */
 
 .login-banner {
   display: block;
@@ -951,6 +1025,8 @@ main {
   border-radius: 10px;
 
   margin-bottom: 20px;
+
+  background: #111;
 }
 
 #usernameForm {
@@ -981,6 +1057,9 @@ main {
 
 #username:focus {
   border-color: var(--purple);
+
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
 .login-profile {
@@ -1012,6 +1091,8 @@ main {
   border-radius: 12px;
 
   border: 1px solid var(--border);
+
+  background: #171717;
 }
 
 .login-profile-inner strong {
@@ -1084,9 +1165,10 @@ main {
   font-size: 0.85rem;
 }
 
+
 /* =========================================================
    INVENTORY
-========================================================= */
+   ========================================================= */
 
 .inventory-grid {
   display: grid;
@@ -1152,6 +1234,11 @@ main {
   border-radius: 9px;
 
   font-weight: 850;
+
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .side-btn:hover,
@@ -1163,9 +1250,14 @@ main {
   border-color: var(--purple);
 }
 
+
 /* =========================================================
    PROFILE
-========================================================= */
+   ========================================================= */
+
+.profile-content {
+  width: 100%;
+}
 
 .profile-card {
   background: #0b0b0b;
@@ -1196,6 +1288,8 @@ main {
   border-radius: 15px;
 
   border: 2px solid var(--purple);
+
+  background: #171717;
 }
 
 .profile-user strong {
@@ -1246,12 +1340,12 @@ main {
   font-size: 1.2rem;
 }
 
+
 /* =========================================================
    CHAT
    IMPORTANT:
-   CHAT OVERLAYS THE SITE.
-   IT DOES NOT RESIZE MAIN.
-========================================================= */
+   CHAT OVERLAYS THE WEBSITE.
+   ========================================================= */
 
 .chat-panel {
   position: fixed;
@@ -1302,14 +1396,6 @@ body.chat-open .chat-panel {
 
   pointer-events: auto;
 }
-
-/*
-   CRITICAL:
-   There is intentionally NO:
-   body.chat-open main { ... }
-
-   Therefore the site remains its normal size.
-*/
 
 .chat-header {
   flex: 0 0 auto;
@@ -1515,9 +1601,10 @@ body.chat-open .chat-panel {
   background: var(--purple-dark);
 }
 
+
 /* =========================================================
    TOAST
-========================================================= */
+   ========================================================= */
 
 #toast {
   position: fixed;
@@ -1526,6 +1613,8 @@ body.chat-open .chat-panel {
 
   left: 50%;
   bottom: 25px;
+
+  max-width: min(500px, calc(100vw - 30px));
 
   padding: 11px 17px;
 
@@ -1559,9 +1648,10 @@ body.chat-open .chat-panel {
     translate(-50%, 0);
 }
 
+
 /* =========================================================
    SCROLLBARS
-========================================================= */
+   ========================================================= */
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -1584,11 +1674,13 @@ body.chat-open .chat-panel {
   background: #3a3a3a;
 }
 
+
 /* =========================================================
    RESPONSIVE
-========================================================= */
+   ========================================================= */
 
 @media (max-width: 900px) {
+
   .nav {
     display: none;
   }
@@ -1597,16 +1689,14 @@ body.chat-open .chat-panel {
     grid-template-columns: 1fr;
   }
 
-  /*
-     Still no main resizing when chat opens.
-  */
-
   .chat-panel {
     width: 320px;
   }
 }
 
+
 @media (max-width: 650px) {
+
   header {
     padding: 0 12px;
   }
@@ -1619,9 +1709,13 @@ body.chat-open .chat-panel {
     display: none;
   }
 
+  .logo {
+    width: 92px;
+    height: 56px;
+  }
+
   .login-button {
     font-size: 0;
-
     padding: 9px;
   }
 
@@ -1629,11 +1723,31 @@ body.chat-open .chat-panel {
     margin: 0;
   }
 
+  .login-button span {
+    display: none;
+  }
+
+  .account-box {
+    padding: 4px;
+  }
+
+  .account-box > span {
+    display: none;
+  }
+
+  .account-menu-btn span {
+    display: none;
+  }
+
   main {
     width: calc(100% - 24px);
 
     margin-left: 12px;
     margin-right: 12px;
+  }
+
+  .page-heading h1 {
+    font-size: 1.65rem;
   }
 
   .stats-grid,
@@ -1655,10 +1769,29 @@ body.chat-open .chat-panel {
     flex-direction: column;
   }
 
-  /*
-     Mobile chat can cover the whole screen.
-     It still does NOT resize main.
-  */
+  .modal {
+    padding: 12px;
+  }
+
+  .modal-box {
+    padding: 19px;
+
+    max-height: 94vh;
+  }
+
+  .login-banner {
+    height: 100px;
+  }
+
+  .coinflip-card {
+    align-items: flex-start;
+
+    flex-direction: column;
+  }
+
+  .coinflip-side {
+    align-self: flex-start;
+  }
 
   .chat-panel {
     width: min(100%, 380px);
@@ -1666,6 +1799,64 @@ body.chat-open .chat-panel {
     right: auto;
   }
 }
+
+
+/* =========================================================
+   EXTRA SMALL DEVICES
+   ========================================================= */
+
+@media (max-width: 420px) {
+
+  header {
+    height: 68px;
+  }
+
+  :root {
+    --header-height: 68px;
+  }
+
+  .brand {
+    height: 60px;
+  }
+
+  .logo {
+    width: 78px;
+    height: 50px;
+  }
+
+  .account-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .panel {
+    padding: 15px;
+  }
+
+  .values-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .inventory-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .pet-card {
+    min-width: 0;
+  }
+
+  .pet-image {
+    width: 85px;
+    height: 85px;
+  }
+}
+
+
+/* =========================================================
+   CHAT ONLINE ICON
+   ========================================================= */
 
 .chat-online-icon {
   color: var(--green);
