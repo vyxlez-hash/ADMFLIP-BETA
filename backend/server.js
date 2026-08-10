@@ -3,6 +3,7 @@
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
+const crypto = require("crypto");
 const path = require("path");
 
 const app = express();
@@ -230,7 +231,8 @@ function getPets() {
 let db = {
   users: {},
   coinflips: [],
-  chatMessages: []
+  chatMessages: [],
+  secret: null
 };
 
 function loadDb() {
@@ -257,6 +259,11 @@ function loadDb() {
       Array.isArray(parsed.chatMessages)
         ? parsed.chatMessages
         : [];
+
+    db.secret =
+      typeof parsed.secret === "string"
+        ? parsed.secret
+        : null;
 
     console.log(
       `Loaded db (${Object.keys(db.users).length} users, ` +
@@ -418,6 +425,286 @@ function createOrUpdateUser(data) {
   user.updatedAt = Date.now();
 
   return user;
+}
+
+/* =========================================================
+   AUTH SESSIONS (stateless signed tokens)
+
+   The frontend expects:
+     POST /check    -> { token, refreshToken, user }
+     POST /refresh  -> { token, refreshToken, user }
+     GET  /account  -> { user }   (Authorization: Bearer <token>)
+
+   Tokens are HMAC-signed so they survive server restarts and
+   need no session table.
+========================================================= */
+
+const ACCESS_TTL_MS = 24 * 60 * 60 * 1000;
+const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function sessionSecret() {
+  if (process.env.SESSION_SECRET) {
+    return process.env.SESSION_SECRET;
+  }
+
+  if (!db.secret) {
+    db.secret = crypto
+      .randomBytes(32)
+      .toString("hex");
+
+    scheduleSave();
+  }
+
+  return db.secret;
+}
+
+function b64url(input) {
+  return Buffer.from(input)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+function fromB64url(input) {
+  return Buffer.from(
+    String(input)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/"),
+    "base64"
+  ).toString("utf8");
+}
+
+function signToken(payload, ttlMs) {
+  const body = b64url(
+    JSON.stringify({
+      ...payload,
+      iat: Date.now(),
+      exp: Date.now() + ttlMs
+    })
+  );
+
+  const signature = crypto
+    .createHmac("sha256", sessionSecret())
+    .update(body)
+    .digest("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  return body + "." + signature;
+}
+
+function verifyToken(token, type) {
+  const raw = clean(token);
+
+  if (!raw || raw.indexOf(".") < 0) {
+    return null;
+  }
+
+  const [body, signature] = raw.split(".");
+
+  const expected = crypto
+    .createHmac("sha256", sessionSecret())
+    .update(body)
+    .digest("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  if (
+    signature.length !== expected.length ||
+    !crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expected)
+    )
+  ) {
+    return null;
+  }
+
+  let payload = null;
+
+  try {
+    payload = JSON.parse(fromB64url(body));
+  } catch {
+    return null;
+  }
+
+  if (!payload || payload.type !== type) {
+    return null;
+  }
+
+  if (!payload.exp || Date.now() > payload.exp) {
+    return null;
+  }
+
+  return payload;
+}
+
+function issueSession(user) {
+  return {
+    token: signToken(
+      { sub: String(user.id), type: "access" },
+      ACCESS_TTL_MS
+    ),
+    accessToken: signToken(
+      { sub: String(user.id), type: "access" },
+      ACCESS_TTL_MS
+    ),
+    refreshToken: signToken(
+      { sub: String(user.id), type: "refresh" },
+      REFRESH_TTL_MS
+    ),
+    expiresIn: Math.floor(ACCESS_TTL_MS / 1000)
+  };
+}
+
+function bearer(req) {
+  const header = clean(
+    req.headers?.authorization ||
+    req.headers?.Authorization
+  );
+
+  if (!/^bearer\s+/i.test(header)) {
+    return "";
+  }
+
+  return header.replace(/^bearer\s+/i, "").trim();
+}
+
+/*
+ * Resolves the signed-in user from the access token.
+ * Returns null when there is no valid session.
+ */
+function sessionUser(req) {
+  const payload = verifyToken(
+    bearer(req),
+    "access"
+  );
+
+  if (!payload) {
+    return null;
+  }
+
+  return getUser(payload.sub);
+}
+
+function publicUser(user) {
+  return {
+    id: user.id,
+    robloxId: user.robloxId,
+    username: user.username,
+    avatar: user.avatar || "/logo.png",
+    verified: Boolean(user.verified),
+    balance: numeric(user.balance),
+    wagered: numeric(user.wagered),
+    profit: numeric(user.profit),
+    coinflips: numeric(user.coinflips),
+    wins: numeric(user.wins),
+    inventory: Array.isArray(user.inventory)
+      ? user.inventory
+      : []
+  };
+}
+
+/* =========================================================
+   INVENTORY HELPERS
+========================================================= */
+
+function findPetValue(name) {
+  return (
+    getPets().find(
+      (pet) =>
+        pet.name.toLowerCase() ===
+        clean(name).toLowerCase()
+    ) || null
+  );
+}
+
+function addInventoryPet(user, name) {
+  const serverPet = findPetValue(name);
+
+  if (!serverPet) {
+    return null;
+  }
+
+  const item = {
+    id: makeId(),
+    itemId: makeId(),
+    name: serverPet.name,
+    value: serverPet.value,
+    image: serverPet.image,
+    addedAt: Date.now()
+  };
+
+  item.itemId = item.id;
+
+  if (!Array.isArray(user.inventory)) {
+    user.inventory = [];
+  }
+
+  user.inventory.push(item);
+  user.updatedAt = Date.now();
+
+  return item;
+}
+
+function takeInventoryPet(user, ref) {
+  if (!Array.isArray(user.inventory)) {
+    user.inventory = [];
+  }
+
+  const id = clean(ref?.itemId || ref?.id);
+  const name = clean(ref?.name).toLowerCase();
+
+  let index = -1;
+
+  if (id) {
+    index = user.inventory.findIndex(
+      (item) =>
+        String(item.id) === id ||
+        String(item.itemId) === id
+    );
+  }
+
+  if (index < 0 && name) {
+    index = user.inventory.findIndex(
+      (item) =>
+        clean(item.name).toLowerCase() === name
+    );
+  }
+
+  if (index < 0) {
+    return null;
+  }
+
+  const [item] = user.inventory.splice(index, 1);
+
+  user.updatedAt = Date.now();
+
+  return item;
+}
+
+function giveInventoryItem(user, item) {
+  if (!Array.isArray(user.inventory)) {
+    user.inventory = [];
+  }
+
+  user.inventory.push({
+    ...item,
+    id: makeId(),
+    itemId: undefined,
+    addedAt: Date.now()
+  });
+
+  const last =
+    user.inventory[user.inventory.length - 1];
+
+  last.itemId = last.id;
+
+  user.updatedAt = Date.now();
+
+  return last;
 }
 
 /* =========================================================
@@ -1183,6 +1470,8 @@ async function verifyRobloxBio(
 
     scheduleSave();
 
+    const session = issueSession(user);
+
     res.json({
       success: true,
       id: robloxUser.id,
@@ -1191,7 +1480,11 @@ async function verifyRobloxBio(
         profile.name ||
         robloxUser.name,
       avatar,
-      user
+      user: publicUser(user),
+      token: session.token,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      expiresIn: session.expiresIn
     });
   } catch (error) {
     console.error(
@@ -1227,6 +1520,83 @@ app.post(
   ),
   verifyRobloxBio
 );
+
+/* =========================================================
+   SESSION: REFRESH + CURRENT ACCOUNT
+========================================================= */
+
+function refreshHandler(req, res) {
+  const payload = verifyToken(
+    clean(
+      req.body?.refreshToken ||
+      req.body?.refresh_token ||
+      bearer(req)
+    ),
+    "refresh"
+  );
+
+  if (!payload) {
+    return res.status(401).json({
+      success: false,
+      message: "Session expired. Verify again."
+    });
+  }
+
+  const user = getUser(payload.sub);
+
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "Account no longer exists."
+    });
+  }
+
+  const session = issueSession(user);
+
+  res.json({
+    success: true,
+    token: session.token,
+    accessToken: session.accessToken,
+    refreshToken: session.refreshToken,
+    expiresIn: session.expiresIn,
+    user: publicUser(user)
+  });
+}
+
+app.post("/refresh", refreshHandler);
+app.post("/api/refresh", refreshHandler);
+
+function meHandler(req, res) {
+  const user = sessionUser(req);
+
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "Not signed in."
+    });
+  }
+
+  res.json({
+    success: true,
+    user: publicUser(user)
+  });
+}
+
+/*
+ * IMPORTANT: registered before "/account/:robloxId"
+ * so the token-based route is reachable.
+ */
+app.get("/account", meHandler);
+app.get("/api/account", meHandler);
+app.get("/me", meHandler);
+app.get("/api/me", meHandler);
+
+function logoutHandler(req, res) {
+  res.json({ success: true });
+}
+
+app.post("/logout", logoutHandler);
+app.post("/api/logout", logoutHandler);
 
 /* =========================================================
    ACCOUNT
@@ -1362,17 +1732,26 @@ function createChatMessage(
   req,
   res
 ) {
-  const robloxId =
-    clean(
-      req.body?.robloxId ||
-      req.body?.userId
-    );
+  /*
+   * Identity comes from the signed access token.
+   * Body fields are only a fallback for legacy clients.
+   */
+  const sessionAccount = sessionUser(req);
 
-  const username =
-    clean(req.body?.username);
+  const robloxId = sessionAccount
+    ? String(sessionAccount.id)
+    : clean(
+        req.body?.robloxId ||
+        req.body?.userId
+      );
 
-  const avatar =
-    clean(req.body?.avatar);
+  const username = sessionAccount
+    ? sessionAccount.username
+    : clean(req.body?.username);
+
+  const avatar = sessionAccount
+    ? clean(sessionAccount.avatar)
+    : clean(req.body?.avatar);
 
   const message =
     clean(req.body?.message);
@@ -1556,16 +1935,13 @@ function createCoinflip(
   req,
   res
 ) {
-  const username =
-    clean(req.body?.username);
+  /*
+   * The creator is taken from the signed session token,
+   * never from the request body.
+   */
+  const user = sessionUser(req);
 
-  const userId =
-    clean(
-      req.body?.userId ||
-      req.body?.robloxId
-    );
-
-  if (!username || !userId) {
+  if (!user) {
     return res.status(401).json({
       success: false,
       message:
@@ -1592,68 +1968,68 @@ function createCoinflip(
   const inputPet =
     req.body?.pet || {};
 
-  const name =
-    clean(
-      inputPet.name ||
-      req.body?.petName
-    );
+  /*
+   * Accept an inventory item id (what the UI sends)
+   * or a pet name, and require that the user
+   * actually owns it.
+   */
+  const ref = {
+    itemId: clean(
+      req.body?.itemId ||
+      req.body?.inventoryId ||
+      inputPet.itemId ||
+      inputPet.id
+    ),
+    name: clean(
+      req.body?.petName ||
+      inputPet.name
+    )
+  };
 
-  if (!name) {
+  if (!ref.itemId && !ref.name) {
+    return res.status(400).json({
+      success: false,
+      message: "Select a pet."
+    });
+  }
+
+  const item = takeInventoryPet(user, ref);
+
+  if (!item) {
     return res.status(400).json({
       success: false,
       message:
-        "Select a pet."
+        "That pet is not in your inventory."
     });
   }
 
   const serverPet =
-    getPets().find(
-      (pet) =>
-        pet.name.toLowerCase() ===
-        name.toLowerCase()
-    );
+    findPetValue(item.name);
 
-  if (!serverPet) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "That pet is not in the current value list."
-    });
-  }
+  const value = serverPet
+    ? serverPet.value
+    : numeric(item.value);
 
-  const user =
-    createOrUpdateUser({
-      id: userId,
-      username,
-      avatar:
-        clean(req.body?.avatar),
-      verified: true
-    });
-
-  user.wagered +=
-    serverPet.value;
-
+  user.wagered += value;
   user.coinflips += 1;
-
   user.updatedAt = Date.now();
 
   const flip = {
     id: makeId(),
-    username:
-      user.username,
+    username: user.username,
     userId: user.id,
     robloxId: user.id,
     avatar:
       user.avatar ||
       "/logo.png",
-    petName:
-      serverPet.name,
-    petValue:
-      serverPet.value,
-    value:
-      serverPet.value,
+    petName: item.name,
+    petValue: value,
+    value,
     image:
-      serverPet.image,
+      item.image ||
+      (serverPet && serverPet.image) ||
+      petImage(item.name),
+    petItem: item,
     side,
     status: "active",
     createdAt: Date.now()
@@ -1674,7 +2050,8 @@ function createCoinflip(
 
   res.status(201).json({
     success: true,
-    coinflip: flip
+    coinflip: flip,
+    user: publicUser(user)
   });
 }
 
@@ -1778,6 +2155,498 @@ app.get(
 );
 
 /* =========================================================
+   ADMIN API (used by the Telegram admin bot)
+
+   Every route requires:  Authorization: Bearer <ADMIN_KEY>
+========================================================= */
+
+const ADMIN_KEY = process.env.ADMIN_KEY || "";
+
+function requireAdmin(req, res, next) {
+  if (!ADMIN_KEY) {
+    return res.status(503).json({
+      success: false,
+      message:
+        "ADMIN_KEY is not configured on the server."
+    });
+  }
+
+  const provided = bearer(req) ||
+    clean(req.headers?.["x-admin-key"]);
+
+  const a = Buffer.from(provided);
+  const b = Buffer.from(ADMIN_KEY);
+
+  if (
+    a.length !== b.length ||
+    !crypto.timingSafeEqual(a, b)
+  ) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid admin key."
+    });
+  }
+
+  next();
+}
+
+function adminUser(body) {
+  const id = clean(
+    body?.robloxId ||
+    body?.userId ||
+    body?.id
+  );
+
+  if (!/^\d+$/.test(id)) {
+    return null;
+  }
+
+  return (
+    getUser(id) ||
+    createOrUpdateUser({
+      id,
+      username: clean(body?.username) || "User",
+      verified: true
+    })
+  );
+}
+
+const adminRouter = express.Router();
+
+adminRouter.use(requireAdmin);
+
+/* Grant pets and/or adjust balance. */
+adminRouter.post("/grant", (req, res) => {
+  const user = adminUser(req.body);
+
+  if (!user) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Roblox ID."
+    });
+  }
+
+  const requested = Array.isArray(req.body?.pets)
+    ? req.body.pets
+    : [];
+
+  const addedPets = [];
+  const missing = [];
+
+  requested.forEach((entry) => {
+    const name = clean(
+      typeof entry === "string"
+        ? entry
+        : entry?.name
+    );
+
+    const item = addInventoryPet(user, name);
+
+    if (item) {
+      addedPets.push(item);
+    } else {
+      missing.push(name);
+    }
+  });
+
+  const delta = numeric(req.body?.balance);
+
+  if (delta) {
+    user.balance = Math.max(
+      0,
+      numeric(user.balance) + delta
+    );
+
+    user.updatedAt = Date.now();
+  }
+
+  scheduleSave();
+
+  if (requested.length && !addedPets.length) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "None of those pets exist in values.txt.",
+      missing
+    });
+  }
+
+  res.json({
+    success: true,
+    addedPets: addedPets.length
+      ? addedPets
+      : null,
+    missing,
+    user: publicUser(user)
+  });
+});
+
+/* Remove one pet from a user's inventory. */
+adminRouter.post("/remove-pet", (req, res) => {
+  const user = adminUser(req.body);
+
+  if (!user) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Roblox ID."
+    });
+  }
+
+  const removedPet = takeInventoryPet(user, {
+    itemId: clean(req.body?.itemId),
+    name: clean(req.body?.petName || req.body?.name)
+  });
+
+  if (!removedPet) {
+    return res.status(404).json({
+      success: false,
+      message:
+        "That pet is not in the user's inventory."
+    });
+  }
+
+  scheduleSave();
+
+  res.json({
+    success: true,
+    removedPet,
+    user: publicUser(user)
+  });
+});
+
+/* Move a pet between two users. */
+adminRouter.post("/transfer-pet", (req, res) => {
+  const from = adminUser({
+    robloxId: req.body?.fromRobloxId
+  });
+
+  const to = adminUser({
+    robloxId: req.body?.toRobloxId
+  });
+
+  if (!from || !to) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Both Roblox IDs must be valid."
+    });
+  }
+
+  const pet = takeInventoryPet(from, {
+    name: clean(req.body?.petName),
+    itemId: clean(req.body?.itemId)
+  });
+
+  if (!pet) {
+    return res.status(404).json({
+      success: false,
+      message:
+        "The sender does not own that pet."
+    });
+  }
+
+  const given = giveInventoryItem(to, pet);
+
+  scheduleSave();
+
+  res.json({
+    success: true,
+    pet: given,
+    from: publicUser(from),
+    to: publicUser(to)
+  });
+});
+
+/* Set an absolute balance. */
+adminRouter.post("/set-balance", (req, res) => {
+  const user = adminUser(req.body);
+
+  if (!user) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Roblox ID."
+    });
+  }
+
+  const balance = numeric(req.body?.balance);
+
+  if (balance < 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Balance cannot be negative."
+    });
+  }
+
+  user.balance = balance;
+  user.updatedAt = Date.now();
+
+  scheduleSave();
+
+  res.json({
+    success: true,
+    user: publicUser(user)
+  });
+});
+
+/* Cancel an active coinflip and refund the pet. */
+adminRouter.post("/cancel-coinflip", (req, res) => {
+  const flipId = clean(
+    req.body?.flipId || req.body?.id
+  );
+
+  const flip = db.coinflips.find(
+    (entry) =>
+      String(entry.id) === flipId &&
+      entry.status === "active"
+  );
+
+  if (!flip) {
+    return res.status(404).json({
+      success: false,
+      message: "No active coinflip with that ID."
+    });
+  }
+
+  flip.status = "cancelled";
+  flip.cancelledAt = Date.now();
+
+  const owner = getUser(flip.userId);
+
+  if (owner) {
+    giveInventoryItem(
+      owner,
+      flip.petItem || {
+        name: flip.petName,
+        value: flip.petValue,
+        image: flip.image
+      }
+    );
+
+    owner.wagered = Math.max(
+      0,
+      numeric(owner.wagered) - numeric(flip.petValue)
+    );
+
+    owner.coinflips = Math.max(
+      0,
+      numeric(owner.coinflips) - 1
+    );
+  }
+
+  scheduleSave();
+
+  res.json({
+    success: true,
+    flip
+  });
+});
+
+/* Join and settle a coinflip on behalf of a user. */
+adminRouter.post("/join-coinflip", (req, res) => {
+  const flipId = clean(
+    req.body?.flipId || req.body?.id
+  );
+
+  const flip = db.coinflips.find(
+    (entry) =>
+      String(entry.id) === flipId &&
+      entry.status === "active"
+  );
+
+  if (!flip) {
+    return res.status(404).json({
+      success: false,
+      message: "No active coinflip with that ID."
+    });
+  }
+
+  const joiner = adminUser(req.body);
+
+  if (!joiner) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Roblox ID."
+    });
+  }
+
+  if (String(joiner.id) === String(flip.userId)) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "The creator cannot join their own coinflip."
+    });
+  }
+
+  /*
+   * The joiner must own a pet of the same name
+   * as the coinflip pet.
+   */
+  const joinerPet = takeInventoryPet(joiner, {
+    name: flip.petName
+  });
+
+  if (!joinerPet) {
+    return res.status(400).json({
+      success: false,
+      message:
+        `${joiner.username} does not own a ${flip.petName}.`
+    });
+  }
+
+  const toss =
+    crypto.randomInt(2) === 0
+      ? "heads"
+      : "tails";
+
+  const creator = getUser(flip.userId);
+
+  const creatorWon = flip.side === toss;
+
+  const winner = creatorWon
+    ? creator
+    : joiner;
+
+  const loser = creatorWon
+    ? joiner
+    : creator;
+
+  const pot =
+    numeric(flip.petValue) * 2;
+
+  if (winner) {
+    giveInventoryItem(
+      winner,
+      flip.petItem || {
+        name: flip.petName,
+        value: flip.petValue,
+        image: flip.image
+      }
+    );
+
+    giveInventoryItem(winner, joinerPet);
+
+    winner.wins = numeric(winner.wins) + 1;
+
+    winner.profit =
+      numeric(winner.profit) +
+      numeric(flip.petValue);
+  }
+
+  if (loser) {
+    loser.profit =
+      numeric(loser.profit) -
+      numeric(flip.petValue);
+  }
+
+  joiner.wagered =
+    numeric(joiner.wagered) +
+    numeric(flip.petValue);
+
+  joiner.coinflips =
+    numeric(joiner.coinflips) + 1;
+
+  flip.status = "completed";
+  flip.toss = toss;
+  flip.completedAt = Date.now();
+
+  flip.opponent = {
+    username: joiner.username,
+    userId: joiner.id,
+    robloxId: joiner.id,
+    avatar: joiner.avatar || "/logo.png",
+    petName: joinerPet.name,
+    petValue: numeric(joinerPet.value)
+  };
+
+  flip.winner = winner
+    ? {
+        username: winner.username,
+        userId: winner.id
+      }
+    : null;
+
+  scheduleSave();
+
+  res.json({
+    success: true,
+    flip,
+    toss,
+    pot,
+    petName: joinerPet.name,
+    winner: flip.winner || {
+      username: "Unknown"
+    }
+  });
+});
+
+/* Chat moderation. */
+adminRouter.post("/chat/delete", (req, res) => {
+  const id = clean(
+    req.body?.messageId || req.body?.id
+  );
+
+  const before = db.chatMessages.length;
+
+  db.chatMessages = db.chatMessages.filter(
+    (message) => String(message.id) !== id
+  );
+
+  scheduleSave();
+
+  res.json({
+    success: true,
+    deleted: before - db.chatMessages.length
+  });
+});
+
+adminRouter.post("/chat/clear", (req, res) => {
+  const cleared = db.chatMessages.length;
+
+  db.chatMessages = [];
+
+  scheduleSave();
+
+  res.json({
+    success: true,
+    cleared
+  });
+});
+
+adminRouter.post("/announce", (req, res) => {
+  const message = clean(req.body?.message);
+
+  if (!message) {
+    return res.status(400).json({
+      success: false,
+      message: "Message is empty."
+    });
+  }
+
+  const announcement = {
+    id: makeId(),
+    username: "ADMFLIP",
+    robloxId: "0",
+    avatar: "/logo.png",
+    message,
+    type: "announcement",
+    pinned: true,
+    createdAt: Date.now()
+  };
+
+  db.chatMessages.push(announcement);
+
+  scheduleSave();
+
+  res.json({
+    success: true,
+    message: announcement
+  });
+});
+
+app.use("/admin", adminRouter);
+app.use("/api/admin", adminRouter);
+
+/* =========================================================
    API INDEX
 ========================================================= */
 
@@ -1799,6 +2668,8 @@ app.get("/api", (req, res) => {
       "GET /user/:username",
       "GET /create",
       "POST /check",
+      "POST /refresh",
+      "GET /account",
       "GET /account/:robloxId",
       "GET /coinflips",
       "POST /coinflips",
