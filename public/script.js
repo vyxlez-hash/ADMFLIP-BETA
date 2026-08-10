@@ -5,13 +5,11 @@
      ADMFLIP CONFIG
   ===================================================== */
 
-  const DEFAULT_BACKEND =
-    "https://admflip-beta.onrender.com";
+  const DEFAULT_BACKEND = "https://admflip-beta.onrender.com";
 
   const BACKEND = (
     new URLSearchParams(location.search).get("backend") ||
-    (window.ADMFLIP_CONFIG &&
-      window.ADMFLIP_CONFIG.backend) ||
+    (window.ADMFLIP_CONFIG && window.ADMFLIP_CONFIG.backend) ||
     DEFAULT_BACKEND
   ).replace(/\/+$/, "");
 
@@ -43,7 +41,12 @@
      CONSTANTS
   ===================================================== */
 
-  const LOGO = "/roblox.png";
+  // IMPORTANT:
+  // ADMFLIP logo = logo.png
+  // Roblox login icon = roblox.png
+
+  const LOGO = "/logo.png";
+  const ROBLOX_LOGO = "/roblox.png";
   const BACKGROUND = "/blurry.png";
   const TOKEN_KEY = "admflip_token";
 
@@ -53,22 +56,64 @@
 
   const $ = (selector) => document.querySelector(selector);
 
-  const $$ = (selector) => [
-    ...document.querySelectorAll(selector)
-  ];
+  const $$ = (selector) => [...document.querySelectorAll(selector)];
 
   const el = (id) => document.getElementById(id);
 
   function show(node) {
-    if (node) {
-      node.classList.remove("hidden");
-    }
+    if (node) node.classList.remove("hidden");
   }
 
   function hide(node) {
-    if (node) {
-      node.classList.add("hidden");
-    }
+    if (node) node.classList.add("hidden");
+  }
+
+  /* =====================================================
+     CLEAN RAW MARKDOWN / CODE FENCE LEAKS
+  ===================================================== */
+
+  function cleanDocumentLeak() {
+    const body = document.body;
+
+    if (!body) return;
+
+    const badPatterns = [
+      /^###\s*index\.html/i,
+      /^###\s*script\.js/i,
+      /^###\s*style\.css/i,
+      /^:::writing/i,
+      /^\{\{.*writing/i,
+      /^```html/i,
+      /^```javascript/i,
+      /^```js/i
+    ];
+
+    [...body.childNodes].forEach((node) => {
+      if (node.nodeType !== Node.TEXT_NODE) return;
+
+      const text = node.textContent.trim();
+
+      if (!text) return;
+
+      if (badPatterns.some((pattern) => pattern.test(text))) {
+        node.remove();
+      }
+    });
+
+    // Remove accidental writing/code labels inside the page.
+    $$("body *").forEach((node) => {
+      if (node.children.length > 0) return;
+
+      const text = (node.textContent || "").trim();
+
+      if (
+        /^###\s*(index\.html|script\.js|style\.css)/i.test(text) ||
+        /^:::writing/i.test(text) ||
+        /^```(html|javascript|js|css)?$/i.test(text)
+      ) {
+        node.remove();
+      }
+    });
   }
 
   /* =====================================================
@@ -158,11 +203,11 @@
     return (
       Number(
         pet?.value ??
-          pet?.normalValue ??
-          pet?.worth ??
-          pet?.price ??
-          pet?.petValue ??
-          0
+        pet?.normalValue ??
+        pet?.worth ??
+        pet?.price ??
+        pet?.petValue ??
+        0
       ) || 0
     );
   }
@@ -196,7 +241,7 @@
 
   function robloxAvatar(id) {
     if (!id) {
-      return LOGO;
+      return ROBLOX_LOGO;
     }
 
     return (
@@ -207,13 +252,33 @@
   }
 
   /* =====================================================
-     LOGO / IMAGE FIX
+     IMAGE FIX
   ===================================================== */
 
+  function fixImage(image, fallback = null) {
+    if (!image) return;
+
+    image.removeAttribute("srcset");
+
+    image.addEventListener(
+      "error",
+      () => {
+        if (image.dataset.admflipFallback) {
+          return;
+        }
+
+        image.dataset.admflipFallback = "1";
+
+        if (fallback) {
+          image.src = fallback;
+        }
+      },
+      { once: true }
+    );
+  }
+
   function fixLogoImages(root = document) {
-    if (!root) {
-      return;
-    }
+    if (!root) return;
 
     const images =
       root.querySelectorAll
@@ -221,49 +286,67 @@
         : [];
 
     images.forEach((image) => {
-      const src =
+      const source =
         image.getAttribute("src") || "";
 
-      if (
-        src.includes("logo.png") ||
-        src.includes("admflip-logo") ||
-        src === "" ||
-        src === "#"
-      ) {
+      /*
+       * ONLY images explicitly intended to be
+       * the ADMFLIP logo get logo.png.
+       */
+      const isMainLogo =
+        image.dataset.admflipLogo === "true" ||
+        image.classList.contains("site-logo") ||
+        image.classList.contains("logo-image") ||
+        image.closest(".site-logo, .brand-logo, #brandLogo");
+
+      if (isMainLogo) {
         image.src = LOGO;
+        image.removeAttribute("srcset");
+        image.style.objectFit = "contain";
+        image.style.filter = "none";
+
+        fixImage(image, LOGO);
+        return;
       }
 
-      image.addEventListener(
-        "error",
-        () => {
-          if (image.dataset.admflipFallback) {
-            return;
-          }
+      /*
+       * Roblox icons/avatars get roblox.png.
+       */
+      const isRobloxImage =
+        image.dataset.robloxLogo === "true" ||
+        image.classList.contains("roblox-logo") ||
+        image.classList.contains("roblox-icon");
 
-          image.dataset.admflipFallback = "1";
-          image.src = LOGO;
-        },
-        {
-          once: true
-        }
-      );
+      if (isRobloxImage) {
+        image.src = ROBLOX_LOGO;
+        image.removeAttribute("srcset");
+
+        fixImage(image, ROBLOX_LOGO);
+        return;
+      }
+
+      /*
+       * DO NOT replace random broken pet images
+       * with logo.png.
+       */
+      fixImage(image);
     });
   }
 
   function forceMainLogo() {
-    const possibleSelectors = [
-      ".logo img",
-      ".site-logo img",
-      ".brand img",
+    const selectors = [
       "#brand img",
-      "header img",
+      "#brandLogo",
+      ".brand-logo img",
+      ".site-logo img",
       ".header-logo img",
-      ".navbar-brand img"
+      ".navbar-brand img",
+      ".logo img"
     ];
 
     let found = false;
 
-    possibleSelectors.forEach((selector) => {
+    selectors.forEach((selector) => {
       $$(selector).forEach((image) => {
         image.src = LOGO;
         image.removeAttribute("srcset");
@@ -273,27 +356,37 @@
 
         image.dataset.admflipLogo = "true";
 
+        fixImage(image, LOGO);
+
         found = true;
       });
     });
 
+    /*
+     * If the header has a plain <img> that is clearly
+     * the ADMFLIP logo, fix only that image.
+     */
     if (!found) {
-      $$("img").forEach((image) => {
+      $$("header img, nav img").forEach((image) => {
         const alt =
           (image.alt || "").toLowerCase();
 
         const src =
-          (image.src || "").toLowerCase();
+          (image.getAttribute("src") || "").toLowerCase();
 
         if (
-          alt.includes("logo") ||
-          src.includes("logo")
+          alt.includes("admflip") ||
+          alt === "logo" ||
+          src.endsWith("/logo.png") ||
+          src.includes("admflip-logo")
         ) {
           image.src = LOGO;
           image.removeAttribute("srcset");
+          image.dataset.admflipLogo = "true";
 
-          image.style.objectFit = "contain";
-          image.style.filter = "none";
+          fixImage(image, LOGO);
+
+          found = true;
         }
       });
     }
@@ -302,23 +395,297 @@
   }
 
   /* =====================================================
-     BACKGROUND FIX
+     SVG ICON SYSTEM
   ===================================================== */
 
-  function installBackground() {
-    if (
-      document.getElementById(
-        "admflip-background-fix"
-      )
-    ) {
+  const ICONS = {
+    coinflip: `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5"></circle>
+        <path d="M9.5 9.5c.7-.9 1.6-1.3 2.7-1.3 1.4 0 2.3.7 2.3 1.8 0 1.1-.8 1.5-2.1 1.9-1.4.4-2.4.8-2.4 2.1 0 1.2 1 1.9 2.5 1.9 1.1 0 2-.4 2.7-1.2"></path>
+      </svg>
+    `,
+
+    values: `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 19V9"></path>
+        <path d="M12 19V5"></path>
+        <path d="M19 19v-7"></path>
+        <path d="M3 19h18"></path>
+      </svg>
+    `,
+
+    chat: `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 5.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H11l-4.5 3v-3H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"></path>
+        <path d="M8 11h.01"></path>
+        <path d="M12 11h.01"></path>
+        <path d="M16 11h.01"></path>
+      </svg>
+    `,
+
+    login: `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="5" y="5" width="14" height="14" rx="2"></rect>
+        <path d="M9 12h7"></path>
+        <path d="m13 9 3 3-3 3"></path>
+      </svg>
+    `,
+
+    users: `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="9" cy="8" r="3"></circle>
+        <path d="M3.5 19c.5-3.1 2.3-5 5.5-5s5 1.9 5.5 5"></path>
+        <path d="M16 5.5a3 3 0 0 1 0 5.8"></path>
+        <path d="M17 14c2.1.4 3.4 2 3.8 4"></path>
+      </svg>
+    `,
+
+    total: `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5"></circle>
+        <path d="M12 7v10"></path>
+        <path d="M15 9.2c-.7-.7-1.6-1-2.7-1-1.4 0-2.4.7-2.4 1.8 0 1.1 1 1.6 2.6 2 1.5.4 2.4.9 2.4 2 0 1.1-1 1.9-2.5 1.9-1.2 0-2.2-.4-3-1.2"></path>
+      </svg>
+    `,
+
+    online: `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="9" cy="8" r="3"></circle>
+        <path d="M3.5 19c.5-3.1 2.3-5 5.5-5s5 1.9 5.5 5"></path>
+        <path d="M17 8v6"></path>
+        <path d="M14 11h6"></path>
+      </svg>
+    `
+  };
+
+  function installIconStyles() {
+    if (el("admflip-icon-styles")) {
       return;
     }
 
-    const style =
-      document.createElement("style");
+    const style = document.createElement("style");
 
-    style.id =
-      "admflip-background-fix";
+    style.id = "admflip-icon-styles";
+
+    style.textContent = `
+      .admflip-icon {
+        width: 17px;
+        height: 17px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 17px;
+        vertical-align: middle;
+      }
+
+      .admflip-icon svg {
+        width: 100%;
+        height: 100%;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .admflip-nav-icon {
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 7px;
+        vertical-align: -3px;
+      }
+
+      .admflip-nav-icon svg {
+        width: 100%;
+        height: 100%;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .admflip-stat-icon {
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 6px;
+        vertical-align: -3px;
+      }
+
+      .admflip-stat-icon svg {
+        width: 100%;
+        height: 100%;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .admflip-roblox-icon {
+        width: 16px;
+        height: 16px;
+        object-fit: contain;
+        vertical-align: -3px;
+        margin-right: 7px;
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  function makeIcon(name, className = "admflip-icon") {
+    const wrapper = document.createElement("span");
+
+    wrapper.className = className;
+    wrapper.innerHTML = ICONS[name] || "";
+
+    return wrapper;
+  }
+
+  function addButtonIcon(button, iconName) {
+    if (!button || !ICONS[iconName]) {
+      return;
+    }
+
+    if (button.querySelector(".admflip-nav-icon")) {
+      return;
+    }
+
+    const icon = makeIcon(
+      iconName,
+      "admflip-nav-icon"
+    );
+
+    button.insertBefore(
+      icon,
+      button.firstChild
+    );
+  }
+
+  function installHeaderIcons() {
+    installIconStyles();
+
+    $$(".nav-item").forEach((button) => {
+      const text =
+        (button.textContent || "").trim().toLowerCase();
+
+      if (text.includes("coinflip")) {
+        addButtonIcon(button, "coinflip");
+      } else if (text.includes("values")) {
+        addButtonIcon(button, "values");
+      } else if (text.includes("chat")) {
+        addButtonIcon(button, "chat");
+      }
+    });
+
+    const chatButton = el("topChatButton");
+
+    if (chatButton) {
+      addButtonIcon(chatButton, "chat");
+    }
+
+    const loginButton = el("loginBtn");
+
+    if (loginButton && !loginButton.querySelector(".roblox-login-icon")) {
+      const icon = document.createElement("img");
+
+      icon.src = ROBLOX_LOGO;
+      icon.alt = "";
+      icon.className = "admflip-roblox-icon roblox-login-icon";
+      icon.dataset.robloxLogo = "true";
+
+      loginButton.insertBefore(
+        icon,
+        loginButton.firstChild
+      );
+
+      fixImage(icon, ROBLOX_LOGO);
+    }
+
+    /*
+     * Fix common stat cards.
+     */
+    const active = el("activeCount");
+
+    if (active) {
+      const card = active.closest(
+        ".stat-card, .stat, .card, .dashboard-card"
+      );
+
+      const label =
+        card?.querySelector(
+          ".stat-label, .card-label, .label"
+        );
+
+      if (label && !label.querySelector(".admflip-stat-icon")) {
+        label.insertBefore(
+          makeIcon("coinflip", "admflip-stat-icon"),
+          label.firstChild
+        );
+      }
+    }
+
+    const total = el("totalValue");
+
+    if (total) {
+      const card = total.closest(
+        ".stat-card, .stat, .card, .dashboard-card"
+      );
+
+      const label =
+        card?.querySelector(
+          ".stat-label, .card-label, .label"
+        );
+
+      if (label && !label.querySelector(".admflip-stat-icon")) {
+        label.insertBefore(
+          makeIcon("total", "admflip-stat-icon"),
+          label.firstChild
+        );
+      }
+    }
+
+    const online = el("coinflipOnline");
+
+    if (online) {
+      const card = online.closest(
+        ".stat-card, .stat, .card, .dashboard-card"
+      );
+
+      const label =
+        card?.querySelector(
+          ".stat-label, .card-label, .label"
+        );
+
+      if (label && !label.querySelector(".admflip-stat-icon")) {
+        label.insertBefore(
+          makeIcon("online", "admflip-stat-icon"),
+          label.firstChild
+        );
+      }
+    }
+  }
+
+  /* =====================================================
+     BACKGROUND
+  ===================================================== */
+
+  function installBackground() {
+    if (el("admflip-background-fix")) {
+      return;
+    }
+
+    const style = document.createElement("style");
+
+    style.id = "admflip-background-fix";
 
     style.textContent = `
       html,
@@ -339,16 +706,13 @@
         z-index: -3;
         pointer-events: none;
 
-        background-image:
-          url("${BACKGROUND}");
-
+        background-image: url("/blurry.png");
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
 
         filter: blur(18px);
         transform: scale(1.06);
-
         opacity: 0.72;
       }
 
@@ -393,10 +757,6 @@
         position: relative;
         z-index: 1;
       }
-
-      #admflip-bg-test {
-        display: none;
-      }
     `;
 
     document.head.appendChild(style);
@@ -410,11 +770,7 @@
     const box = el("toast");
 
     if (!box) {
-      console.warn(
-        "[ADMFLIP TOAST]",
-        message
-      );
-
+      console.warn("[ADMFLIP TOAST]", message);
       return;
     }
 
@@ -424,10 +780,9 @@
 
     clearTimeout(box._timeout);
 
-    box._timeout =
-      setTimeout(() => {
-        box.classList.remove("show");
-      }, 2800);
+    box._timeout = setTimeout(() => {
+      box.classList.remove("show");
+    }, 2800);
   }
 
   /* =====================================================
@@ -445,8 +800,7 @@
     };
 
     if (options.body) {
-      headers["Content-Type"] =
-        "application/json";
+      headers["Content-Type"] = "application/json";
     }
 
     if (state.token) {
@@ -482,16 +836,12 @@
       );
     }
 
-    const text =
-      await response.text();
+    const text = await response.text();
 
     let data = null;
 
     try {
-      data =
-        text
-          ? JSON.parse(text)
-          : null;
+      data = text ? JSON.parse(text) : null;
     } catch {
       data = text;
     }
@@ -517,7 +867,7 @@
   }
 
   /* =====================================================
-     TOKEN STORAGE
+     TOKEN
   ===================================================== */
 
   function saveToken(token) {
@@ -547,12 +897,8 @@
         TOKEN_KEY
       );
 
-    if (
-      token &&
-      token.trim()
-    ) {
+    if (token && token.trim()) {
       state.token = token.trim();
-
       return true;
     }
 
@@ -593,14 +939,12 @@
       }
     );
 
-    $$(".nav-item").forEach(
-      (button) => {
-        button.classList.toggle(
-          "active",
-          button.dataset.page === page
-        );
-      }
-    );
+    $$(".nav-item").forEach((button) => {
+      button.classList.toggle(
+        "active",
+        button.dataset.page === page
+      );
+    });
 
     if (page === "values") {
       loadValues();
@@ -614,6 +958,8 @@
       renderProfile();
     }
 
+    installHeaderIcons();
+
     try {
       history.replaceState(
         null,
@@ -624,26 +970,21 @@
   }
 
   function setupNavigation() {
-    $$(".nav-item").forEach(
-      (button) => {
-        button.addEventListener(
-          "click",
-          () => {
-            if (
-              button.id ===
-              "topChatButton"
-            ) {
-              toggleChat();
-              return;
-            }
-
-            openPage(
-              button.dataset.page
-            );
+    $$(".nav-item").forEach((button) => {
+      button.addEventListener(
+        "click",
+        () => {
+          if (button.id === "topChatButton") {
+            toggleChat();
+            return;
           }
-        );
-      }
-    );
+
+          openPage(
+            button.dataset.page
+          );
+        }
+      );
+    });
 
     el("brand")?.addEventListener(
       "click",
@@ -653,10 +994,12 @@
         openPage("coinflip");
       }
     );
+
+    installHeaderIcons();
   }
 
   /* =====================================================
-     ERROR RENDER
+     ERROR
   ===================================================== */
 
   function renderError(
@@ -668,42 +1011,30 @@
       return;
     }
 
-    const retryId =
-      "retry_" +
-      Math.random()
-        .toString(36)
-        .slice(2);
-
     container.innerHTML =
-      `<div class="loading">${escapeHTML(
-        text
-      )}</div>` +
+      `<div class="loading">${escapeHTML(text)}</div>` +
       (
         retryFn
-          ? `<button class="retry-btn" id="${retryId}">Retry</button>`
+          ? `<button class="retry-btn" id="retryBtn">Retry</button>`
           : ""
       );
 
-    if (retryFn) {
-      const btn =
-        el(retryId);
+    const btn = el("retryBtn");
 
-      if (btn) {
-        btn.addEventListener(
-          "click",
-          retryFn
-        );
-      }
+    if (btn) {
+      btn.addEventListener(
+        "click",
+        retryFn
+      );
     }
   }
 
   /* =====================================================
-     LOGIN MODAL
+     LOGIN
   ===================================================== */
 
   function openLogin() {
-    const modal =
-      el("loginModal");
+    const modal = el("loginModal");
 
     if (!modal) {
       return;
@@ -711,8 +1042,7 @@
 
     show(modal);
 
-    const input =
-      el("username");
+    const input = el("username");
 
     if (input) {
       input.value = "";
@@ -727,8 +1057,7 @@
     hide(el("phrase"));
     hide(el("verify"));
 
-    const message =
-      el("loginMessage");
+    const message = el("loginMessage");
 
     if (message) {
       message.textContent = "";
@@ -766,16 +1095,14 @@
     const first =
       words[
         Math.floor(
-          Math.random() *
-          words.length
+          Math.random() * words.length
         )
       ];
 
     const second =
       words[
         Math.floor(
-          Math.random() *
-          words.length
+          Math.random() * words.length
         )
       ];
 
@@ -785,17 +1112,12 @@
         Math.random() * 9000
       );
 
-    return (
-      `ADMFLIP-${first}-${second}-${number}`
-    );
+    return `ADMFLIP-${first}-${second}-${number}`;
   }
 
   async function startVerification() {
-    const input =
-      el("username");
-
-    const message =
-      el("loginMessage");
+    const input = el("username");
+    const message = el("loginMessage");
 
     if (!input) {
       return;
@@ -819,16 +1141,12 @@
     }
 
     try {
-      const data =
-        await api(
-          "/user/" +
-          encodeURIComponent(
-            username
-          )
-        );
+      const data = await api(
+        "/user/" +
+        encodeURIComponent(username)
+      );
 
-      const robloxUser =
-        data?.user;
+      const robloxUser = data?.user;
 
       if (!robloxUser?.id) {
         throw new Error(
@@ -843,7 +1161,6 @@
         username:
           robloxUser.username ||
           username,
-
         robloxUser,
         phrase
       };
@@ -877,8 +1194,7 @@
   }
 
   function renderLoginProfile(user) {
-    const box =
-      el("loginProfile");
+    const box = el("loginProfile");
 
     if (!box) {
       return;
@@ -917,12 +1233,19 @@
 
     show(box);
 
-    fixLogoImages(box);
+    const avatarImage =
+      box.querySelector("img");
+
+    if (avatarImage) {
+      fixImage(
+        avatarImage,
+        ROBLOX_LOGO
+      );
+    }
   }
 
   function renderPhrase(phrase) {
-    const box =
-      el("phrase");
+    const box = el("phrase");
 
     if (!box) {
       return;
@@ -977,23 +1300,20 @@
     }
 
     try {
-      const result =
-        await api(
-          "/check",
-          {
-            method: "POST",
+      const result = await api(
+        "/check",
+        {
+          method: "POST",
 
-            body: JSON.stringify({
-              username:
-                state.verification
-                  .username,
+          body: JSON.stringify({
+            username:
+              state.verification.username,
 
-              phrase:
-                state.verification
-                  .phrase
-            })
-          }
-        );
+            phrase:
+              state.verification.phrase
+          })
+        }
+      );
 
       if (
         !result ||
@@ -1009,9 +1329,7 @@
         result.user || null;
 
       if (result.token) {
-        saveToken(
-          result.token
-        );
+        saveToken(result.token);
       }
 
       await loadAccount();
@@ -1086,9 +1404,7 @@
       state.user = account;
 
       state.inventory =
-        Array.isArray(
-          account.inventory
-        )
+        Array.isArray(account.inventory)
           ? account.inventory
           : [];
 
@@ -1107,21 +1423,11 @@
         ).toLowerCase();
 
       const authError =
-        message.includes(
-          "unauthorized"
-        ) ||
-        message.includes(
-          "invalid token"
-        ) ||
-        message.includes(
-          "token expired"
-        ) ||
-        message.includes(
-          "not authenticated"
-        ) ||
-        message.includes(
-          "authentication required"
-        );
+        message.includes("unauthorized") ||
+        message.includes("invalid token") ||
+        message.includes("token expired") ||
+        message.includes("not authenticated") ||
+        message.includes("authentication required");
 
       if (authError) {
         clearToken();
@@ -1136,15 +1442,14 @@
   }
 
   function updateAccountUI() {
-    const login =
-      el("loginBtn");
-
-    const account =
-      el("accountBox");
+    const login = el("loginBtn");
+    const account = el("accountBox");
 
     if (!state.user) {
       show(login);
       hide(account);
+
+      installHeaderIcons();
 
       return;
     }
@@ -1172,10 +1477,11 @@
         );
 
       avatar.onerror = () => {
-        avatar.onerror = null;
-        avatar.src = LOGO;
+        avatar.src = ROBLOX_LOGO;
       };
     }
+
+    installHeaderIcons();
   }
 
   async function logout() {
@@ -1208,8 +1514,7 @@
   ===================================================== */
 
   async function loadValues() {
-    const grid =
-      el("valuesGrid");
+    const grid = el("valuesGrid");
 
     if (!grid) {
       return;
@@ -1245,8 +1550,7 @@
   }
 
   function renderValues(pets) {
-    const grid =
-      el("valuesGrid");
+    const grid = el("valuesGrid");
 
     if (!grid) {
       return;
@@ -1260,22 +1564,17 @@
     }
 
     grid.innerHTML =
-      pets
-        .map(renderPetCard)
-        .join("");
+      pets.map(
+        renderPetCard
+      ).join("");
 
     fixLogoImages(grid);
   }
 
   function renderPetCard(pet) {
-    const name =
-      petName(pet);
-
-    const value =
-      petValue(pet);
-
-    const image =
-      petImage(pet);
+    const name = petName(pet);
+    const value = petValue(pet);
+    const image = petImage(pet);
 
     return `
       <article
@@ -1305,8 +1604,7 @@
   }
 
   function setupValueSearch() {
-    const input =
-      el("valueSearch");
+    const input = el("valueSearch");
 
     if (!input) {
       return;
@@ -1324,8 +1622,7 @@
           .forEach((card) => {
             const name =
               (
-                card.dataset
-                  .petName ||
+                card.dataset.petName ||
                 ""
               ).toLowerCase();
 
@@ -1360,9 +1657,7 @@
           data?.coinflips
         )
           ? data.coinflips
-          : Array.isArray(data)
-            ? data
-            : [];
+          : [];
 
       state.coinflips = flips;
 
@@ -1397,6 +1692,8 @@
         totalNode.textContent =
           formatValue(total);
       }
+
+      installHeaderIcons();
     } catch (error) {
       console.error(
         "Coinflips:",
@@ -1427,87 +1724,82 @@
     }
 
     container.innerHTML =
-      flips
-        .map((flip) => {
-          const username =
-            flip.username ||
-            "User";
+      flips.map((flip) => {
+        const username =
+          flip.username ||
+          "User";
 
-          const avatar =
-            flip.avatar ||
-            robloxAvatar(
-              flip.robloxId ||
-              flip.userId
-            );
+        const avatar =
+          flip.avatar ||
+          robloxAvatar(
+            flip.robloxId ||
+            flip.userId
+          );
 
-          const name =
-            flip.petName ||
-            "Pet";
+        const name =
+          flip.petName ||
+          "Pet";
 
-          const value =
-            flip.petValue || 0;
+        const value =
+          flip.petValue ||
+          0;
 
-          const image =
-            flip.image ||
-            petImage({
-              name
-            });
+        const image =
+          flip.image ||
+          petImage({ name });
 
-          return `
-            <article
-              class="coinflip-card"
-              data-id="${escapeHTML(
-                flip.id || ""
-              )}"
-            >
-              <div class="coinflip-player">
+        return `
+          <article
+            class="coinflip-card"
+            data-id="${escapeHTML(flip.id)}"
+          >
+            <div class="coinflip-player">
 
-                <img
-                  src="${escapeHTML(avatar)}"
-                  alt=""
-                >
+              <img
+                src="${escapeHTML(avatar)}"
+                alt=""
+              >
 
-                <div>
-                  <strong>
-                    ${escapeHTML(username)}
-                  </strong>
+              <div>
+                <strong>
+                  ${escapeHTML(username)}
+                </strong>
 
-                  <small>
-                    Coinflip
-                  </small>
-                </div>
-
+                <small>
+                  Coinflip
+                </small>
               </div>
 
-              <div class="coinflip-pet">
+            </div>
 
-                <img
-                  src="${escapeHTML(image)}"
-                  alt=""
-                >
+            <div class="coinflip-pet">
 
-                <div>
-                  <strong>
-                    ${escapeHTML(name)}
-                  </strong>
+              <img
+                src="${escapeHTML(image)}"
+                alt=""
+              >
 
-                  <small class="muted">
-                    ${formatValue(value)}
-                  </small>
-                </div>
+              <div>
+                <strong>
+                  ${escapeHTML(name)}
+                </strong>
 
+                <small class="muted">
+                  ${formatValue(value)}
+                </small>
               </div>
 
-              <div class="coinflip-side">
-                ${escapeHTML(
-                  flip.side || "heads"
-                )}
-              </div>
+            </div>
 
-            </article>
-          `;
-        })
-        .join("");
+            <div class="coinflip-side">
+              ${escapeHTML(
+                flip.side || "heads"
+              )}
+            </div>
+
+          </article>
+        `;
+      }).join("");
 
     fixLogoImages(container);
   }
@@ -1590,44 +1882,42 @@
       }
 
       grid.innerHTML =
-        pets
-          .map(
-            (pet, index) => `
-              <article
-                class="pet-card"
-                data-index="${index}"
+        pets.map(
+          (pet, index) => `
+            <article
+              class="pet-card"
+              data-index="${index}"
+            >
+              <img
+                class="pet-image"
+                src="${escapeHTML(
+                  petImage(pet)
+                )}"
+                alt="${escapeHTML(
+                  petName(pet)
+                )}"
               >
-                <img
-                  class="pet-image"
-                  src="${escapeHTML(
-                    petImage(pet)
-                  )}"
-                  alt="${escapeHTML(
-                    petName(pet)
-                  )}"
-                >
 
-                <div class="pet-name">
-                  ${escapeHTML(
-                    petName(pet)
+              <div class="pet-name">
+                ${escapeHTML(
+                  petName(pet)
+                )}
+              </div>
+
+              <div class="pet-meta">
+                <span>
+                  Value
+                </span>
+
+                <strong class="pet-value">
+                  ${formatValue(
+                    petValue(pet)
                   )}
-                </div>
-
-                <div class="pet-meta">
-                  <span>
-                    Value
-                  </span>
-
-                  <strong class="pet-value">
-                    ${formatValue(
-                      petValue(pet)
-                    )}
-                  </strong>
-                </div>
-              </article>
-            `
-          )
-          .join("");
+                </strong>
+              </div>
+            </article>
+          `
+        ).join("");
 
       fixLogoImages(grid);
 
@@ -1660,9 +1950,7 @@
               );
 
               const preview =
-                el(
-                  "selectedPetPreview"
-                );
+                el("selectedPetPreview");
 
               if (preview) {
                 preview.innerHTML = `
@@ -1710,12 +1998,13 @@
         button.addEventListener(
           "click",
           () => {
-            $$(".side-btn").forEach(
-              (item) =>
-                item.classList.remove(
-                  "selected"
-                )
-            );
+            $$(".side-btn")
+              .forEach(
+                (item) =>
+                  item.classList.remove(
+                    "selected"
+                  )
+              );
 
             button.classList.add(
               "selected"
@@ -1803,13 +2092,7 @@
         );
 
       const messages =
-        Array.isArray(
-          data?.messages
-        )
-          ? data.messages
-          : Array.isArray(data)
-            ? data
-            : [];
+        data?.messages || [];
 
       renderChat(messages);
 
@@ -1824,9 +2107,7 @@
             presence?.onlineUsers
           );
 
-        if (
-          Number.isFinite(online)
-        ) {
+        if (Number.isFinite(online)) {
           setOnlineCount(online);
           return;
         }
@@ -1840,8 +2121,8 @@
 
         setOnlineCount(
           Number(
-            online?.online ??
-            online?.count ??
+            online?.online ||
+            online?.count ||
             0
           )
         );
@@ -1876,62 +2157,35 @@
     }
 
     container.innerHTML =
-      messages
-        .map((message) => {
-          const username =
-            message.username ||
-            "User";
+      messages.map((message) => {
+        const username =
+          message.username ||
+          "User";
 
-          const avatar =
-            message.avatar ||
-            robloxAvatar(
-              message.robloxId ||
-              message.userId
-            );
+        const avatar =
+          message.avatar ||
+          robloxAvatar(
+            message.robloxId ||
+            message.userId
+          );
 
-          const text =
-            message.message ||
-            "";
+        const text =
+          message.message || "";
 
-          const pinned =
-            Boolean(message.pinned) ||
-            message.type ===
-              "announcement";
+        const pinned =
+          Boolean(message.pinned) ||
+          message.type ===
+            "announcement";
 
-          if (pinned) {
-            return `
-              <div class="chat-message chat-announcement">
-
-                <div>
-
-                  <div class="chat-announcement-pin">
-                    📌 PINNED
-                  </div>
-
-                  <div class="chat-username">
-                    ${escapeHTML(username)}
-                  </div>
-
-                  <div class="chat-text">
-                    ${escapeHTML(text)}
-                  </div>
-
-                </div>
-
-              </div>
-            `;
-          }
-
+        if (pinned) {
           return `
-            <div class="chat-message">
+            <div class="chat-message chat-announcement">
 
-              <img
-                class="chat-avatar"
-                src="${escapeHTML(avatar)}"
-                alt=""
-              >
+              <div>
 
-              <div class="chat-content">
+                <div class="chat-announcement-pin">
+                  📌 PINNED
+                </div>
 
                 <div class="chat-username">
                   ${escapeHTML(username)}
@@ -1945,8 +2199,32 @@
 
             </div>
           `;
-        })
-        .join("");
+        }
+
+        return `
+          <div class="chat-message">
+
+            <img
+              class="chat-avatar"
+              src="${escapeHTML(avatar)}"
+              alt=""
+            >
+
+            <div class="chat-content">
+
+              <div class="chat-username">
+                ${escapeHTML(username)}
+              </div>
+
+              <div class="chat-text">
+                ${escapeHTML(text)}
+              </div>
+
+            </div>
+
+          </div>
+        `;
+      }).join("");
 
     fixLogoImages(container);
 
@@ -1966,22 +2244,24 @@
     state.onlineCount =
       finalCount;
 
-    const ids = [
+    [
       "panelOnlineCount",
       "coinflipOnline",
       "onlineCount",
       "onlineUsers",
       "chatOnlineCount"
-    ];
-
-    ids.forEach((id) => {
+    ].forEach((id) => {
       const node = el(id);
 
       if (node) {
         node.textContent =
-          formatNumber(finalCount);
+          formatNumber(
+            finalCount
+          );
       }
     });
+
+    installHeaderIcons();
   }
 
   async function sendChatMessage() {
@@ -2044,9 +2324,10 @@
       "chat-open"
     );
 
-    el("topChatButton")?.classList.add(
-      "active"
-    );
+    el("topChatButton")
+      ?.classList.add(
+        "active"
+      );
 
     loadChat();
   }
@@ -2058,9 +2339,10 @@
       "chat-open"
     );
 
-    el("topChatButton")?.classList.remove(
-      "active"
-    );
+    el("topChatButton")
+      ?.classList.remove(
+        "active"
+      );
   }
 
   function toggleChat() {
@@ -2203,9 +2485,7 @@
           ${
             inventory.length
               ? inventory
-                  .map(
-                    renderPetCard
-                  )
+                  .map(renderPetCard)
                   .join("")
               : `
                 <div class="loading">
@@ -2303,6 +2583,7 @@
       );
 
     setupSideButtons();
+
     setupValueSearch();
 
     document.addEventListener(
@@ -2351,15 +2632,21 @@
       return;
     }
 
-    setTimeout(() => {
-      screen.classList.add(
-        "is-hidden"
-      );
+    setTimeout(
+      () => {
+        screen.classList.add(
+          "is-hidden"
+        );
 
-      setTimeout(() => {
-        screen.remove();
-      }, 260);
-    }, 700);
+        setTimeout(
+          () => {
+            screen.remove();
+          },
+          260
+        );
+      },
+      700
+    );
   }
 
   /* =====================================================
@@ -2422,7 +2709,7 @@
   }
 
   /* =====================================================
-     AUTO IMAGE OBSERVER
+     IMAGE OBSERVER
   ===================================================== */
 
   function setupImageObserver() {
@@ -2438,21 +2725,27 @@
               mutation.addedNodes.forEach(
                 (node) => {
                   if (
-                    node.nodeType !== 1
+                    node.nodeType !==
+                    1
                   ) {
                     return;
                   }
 
                   if (
-                    node.tagName === "IMG"
+                    node.tagName ===
+                    "IMG"
                   ) {
                     fixLogoImages(
                       node.parentElement ||
                       document
                     );
                   } else {
-                    fixLogoImages(node);
+                    fixLogoImages(
+                      node
+                    );
                   }
+
+                  installHeaderIcons();
                 }
               );
             }
@@ -2476,7 +2769,16 @@
   async function init() {
     restoreToken();
 
+    /*
+     * Remove the accidental
+     * "### index.html / :::writing..."
+     * text from the page.
+     */
+    cleanDocumentLeak();
+
     installBackground();
+
+    installIconStyles();
 
     forceMainLogo();
 
@@ -2487,6 +2789,8 @@
     setupNavigation();
 
     setupEvents();
+
+    installHeaderIcons();
 
     await loadAccount();
 
@@ -2507,17 +2811,27 @@
         : "coinflip"
     );
 
-    setInterval(() => {
-      if (
-        state.page === "coinflip"
-      ) {
-        loadCoinflips();
-      }
+    installHeaderIcons();
 
-      if (state.chatOpen) {
-        loadChat();
-      }
-    }, 5000);
+    setInterval(
+      () => {
+        if (
+          state.page ===
+          "coinflip"
+        ) {
+          loadCoinflips();
+        }
+
+        if (
+          state.chatOpen
+        ) {
+          loadChat();
+        }
+
+        installHeaderIcons();
+      },
+      5000
+    );
 
     setInterval(
       heartbeat,
@@ -2530,12 +2844,27 @@
     );
 
     setTimeout(
+      installHeaderIcons,
+      100
+    );
+
+    setTimeout(
       forceMainLogo,
       500
     );
 
     setTimeout(
+      installHeaderIcons,
+      500
+    );
+
+    setTimeout(
       forceMainLogo,
+      1500
+    );
+
+    setTimeout(
+      installHeaderIcons,
       1500
     );
   }
@@ -2558,4 +2887,5 @@
   } else {
     init();
   }
+
 })();
