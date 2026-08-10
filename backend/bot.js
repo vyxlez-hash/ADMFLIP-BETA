@@ -4,51 +4,83 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_ADMIN_ID = String(
   process.env.TELEGRAM_ADMIN_ID || ""
 ).trim();
+
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
 
 const API_URL = (
   process.env.BACKEND_URL ||
-  process.env.API_URL ||
   "http://127.0.0.1:10000"
 ).replace(/\/+$/, "");
 
 if (!BOT_TOKEN) {
-  console.warn(
-    "[TELEGRAM] TELEGRAM_BOT_TOKEN is not set. Bot disabled."
-  );
+  console.warn("[TELEGRAM] TELEGRAM_BOT_TOKEN missing.");
   module.exports = {};
   return;
 }
 
 if (!TELEGRAM_ADMIN_ID) {
-  console.warn(
-    "[TELEGRAM] TELEGRAM_ADMIN_ID is not set. Bot disabled."
-  );
+  console.warn("[TELEGRAM] TELEGRAM_ADMIN_ID missing.");
   module.exports = {};
   return;
 }
 
 if (!ADMIN_KEY) {
-  console.warn(
-    "[TELEGRAM] ADMIN_KEY is not set. Bot disabled."
-  );
+  console.warn("[TELEGRAM] ADMIN_KEY missing.");
   module.exports = {};
   return;
 }
 
-const TG_API =
+const TELEGRAM_API =
   `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-let offset = 0;
-let running = false;
+let updateOffset = 0;
+let polling = false;
 
-/* =========================================================
-   TELEGRAM API
-========================================================= */
+function clean(value) {
+  return String(value ?? "").trim();
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function commandName(text) {
+  return clean(text)
+    .split(/\s+/)[0]
+    .toLowerCase()
+    .split("@")[0];
+}
+
+function commandArgs(text) {
+  return clean(text)
+    .split(/\s+/)
+    .slice(1)
+    .filter(Boolean);
+}
+
+function isAdmin(message) {
+  return (
+    String(message?.from?.id || "") ===
+    TELEGRAM_ADMIN_ID
+  );
+}
+
+function formatNumber(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return "0";
+  }
+
+  return number.toLocaleString("en-US");
+}
 
 async function telegram(method, body = {}) {
   const response = await fetch(
-    `${TG_API}/${method}`,
+    `${TELEGRAM_API}/${method}`,
     {
       method: "POST",
       headers: {
@@ -63,7 +95,7 @@ async function telegram(method, body = {}) {
   if (!data.ok) {
     throw new Error(
       data.description ||
-      `Telegram API error: ${method}`
+      `Telegram error: ${method}`
     );
   }
 
@@ -72,8 +104,7 @@ async function telegram(method, body = {}) {
 
 async function sendMessage(
   chatId,
-  text,
-  extra = {}
+  text
 ) {
   return telegram(
     "sendMessage",
@@ -81,74 +112,21 @@ async function sendMessage(
       chat_id: chatId,
       text,
       parse_mode: "HTML",
-      disable_web_page_preview: true,
-      ...extra
+      disable_web_page_preview: true
     }
   );
 }
 
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function clean(value) {
-  return String(value ?? "").trim();
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function argsOf(text) {
-  return clean(text)
-    .split(/\s+/)
-    .slice(1)
-    .filter(Boolean);
-}
-
-function isAdmin(message) {
-  return (
-    String(
-      message?.from?.id || ""
-    ) === TELEGRAM_ADMIN_ID
-  );
-}
-
-function money(value) {
-  const n = Number(value);
-
-  if (!Number.isFinite(n)) {
-    return "0";
-  }
-
-  return n.toLocaleString("en-US");
-}
-
-function commandName(text) {
-  return clean(text)
-    .split(/\s+/)[0]
-    .toLowerCase()
-    .split("@")[0];
-}
-
-/* =========================================================
-   BACKEND API
-========================================================= */
-
 async function api(
-  path,
+  endpoint,
   options = {}
 ) {
   const response = await fetch(
-    `${API_URL}${path}`,
+    `${API_URL}${endpoint}`,
     {
       ...options,
       headers: {
-        "Content-Type":
-          "application/json",
+        "Content-Type": "application/json",
         ...(options.headers || {})
       }
     }
@@ -179,11 +157,11 @@ async function api(
 }
 
 async function adminApi(
-  path,
+  endpoint,
   body
 ) {
   return api(
-    path,
+    endpoint,
     {
       method: "POST",
       headers: {
@@ -195,46 +173,22 @@ async function adminApi(
   );
 }
 
-/* =========================================================
-   USERS
-========================================================= */
+/* =====================================================
+   BASIC
+===================================================== */
 
-async function getUser(
-  robloxId
-) {
-  return api(
-    `/account/${encodeURIComponent(
-      robloxId
-    )}`
-  );
-}
-
-async function lookupRoblox(
-  username
-) {
-  return api(
-    `/user/${encodeURIComponent(
-      username
-    )}`
-  );
-}
-
-/* =========================================================
-   START / HELP
-========================================================= */
-
-async function cmdStart(
+async function startCommand(
   chatId
 ) {
   return sendMessage(
     chatId,
     `<b>ADMFLIP ADMIN BOT</b>
 
-Use /commands to see all available commands.`
+Use /commands to view every command.`
   );
 }
 
-async function cmdCommands(
+async function commandsCommand(
   chatId
 ) {
   return sendMessage(
@@ -245,10 +199,10 @@ async function cmdCommands(
 
 /user &lt;robloxId&gt;
 /lookup &lt;username&gt;
+/pets &lt;robloxId&gt;
 
 <b>PETS</b>
 
-/pets &lt;robloxId&gt;
 /addpet &lt;robloxId&gt; &lt;pet name&gt;
 /removepet &lt;robloxId&gt; &lt;pet name&gt;
 /transferpet &lt;fromId&gt; &lt;toId&gt; &lt;pet name&gt;
@@ -274,23 +228,26 @@ All commands are admin-only.`
   );
 }
 
-/* =========================================================
-   USER COMMANDS
-========================================================= */
+/* =====================================================
+   USER
+===================================================== */
 
-async function cmdUser(
+async function userCommand(
   chatId,
   args
 ) {
   if (!args[0]) {
     return sendMessage(
       chatId,
-      "Usage: <code>/user RobloxId</code>"
+      "Usage: /user RobloxId"
     );
   }
 
-  const data =
-    await getUser(args[0]);
+  const data = await api(
+    `/account/${encodeURIComponent(
+      args[0]
+    )}`
+  );
 
   const user = data.user;
 
@@ -305,61 +262,66 @@ async function cmdUser(
     chatId,
     `<b>USER</b>
 
-<b>Username:</b> ${escapeHtml(
+Username: <b>${escapeHtml(
       user.username
-    )}
+    )}</b>
 
-<b>Roblox ID:</b> <code>${escapeHtml(
-      user.robloxId
+Roblox ID:
+<code>${escapeHtml(
+      user.id
     )}</code>
 
-<b>Verified:</b> ${
-      user.verified
-        ? "Yes"
-        : "No"
-    }
+Verified:
+${user.verified ? "✅ Yes" : "❌ No"}
 
-<b>Balance:</b> ${money(
+Balance:
+<b>${formatNumber(
       user.balance
-    )}
+    )}</b>
 
-<b>Wagered:</b> ${money(
+Wagered:
+<b>${formatNumber(
       user.wagered
-    )}
+    )}</b>
 
-<b>Profit:</b> ${money(
+Profit:
+<b>${formatNumber(
       user.profit
-    )}
+    )}</b>
 
-<b>Coinflips:</b> ${
-      user.coinflips || 0
-    }
+Coinflips:
+<b>${user.coinflips || 0}</b>
 
-<b>Wins:</b> ${
-      user.wins || 0
-    }
+Wins:
+<b>${user.wins || 0}</b>
 
-<b>Pets:</b> ${
-      (user.inventory || [])
-        .length
-    }`
+Pets:
+<b>${(
+      user.inventory || []
+    ).length}</b>`
   );
 }
 
-async function cmdLookup(
+/* =====================================================
+   ROBLOX LOOKUP
+===================================================== */
+
+async function lookupCommand(
   chatId,
   args
 ) {
   if (!args[0]) {
     return sendMessage(
       chatId,
-      "Usage: <code>/lookup Username</code>"
+      "Usage: /lookup Username"
     );
   }
 
   const data =
-    await lookupRoblox(
-      args[0]
+    await api(
+      `/user/${encodeURIComponent(
+        args[0]
+      )}`
     );
 
   const user = data.user;
@@ -375,34 +337,45 @@ async function cmdLookup(
     chatId,
     `<b>ROBLOX USER</b>
 
-<b>Username:</b> ${escapeHtml(
+Username:
+<b>${escapeHtml(
       user.username
-    )}
+    )}</b>
 
-<b>Display:</b> ${escapeHtml(
+Display:
+<b>${escapeHtml(
       user.displayName ||
       user.username
-    )}
+    )}</b>
 
-<b>Roblox ID:</b> <code>${escapeHtml(
+Roblox ID:
+<code>${escapeHtml(
       user.id
     )}</code>`
   );
 }
 
-async function cmdPets(
+/* =====================================================
+   PETS
+===================================================== */
+
+async function petsCommand(
   chatId,
   args
 ) {
   if (!args[0]) {
     return sendMessage(
       chatId,
-      "Usage: <code>/pets RobloxId</code>"
+      "Usage: /pets RobloxId"
     );
   }
 
   const data =
-    await getUser(args[0]);
+    await api(
+      `/account/${encodeURIComponent(
+        args[0]
+      )}`
+    );
 
   const user = data.user;
 
@@ -414,7 +387,9 @@ async function cmdPets(
   }
 
   const pets =
-    user.inventory || [];
+    Array.isArray(user.inventory)
+      ? user.inventory
+      : [];
 
   if (!pets.length) {
     return sendMessage(
@@ -430,7 +405,7 @@ async function cmdPets(
       (pet, index) =>
         `${index + 1}. <b>${escapeHtml(
           pet.name
-        )}</b> — ${money(
+        )}</b> — ${formatNumber(
           pet.value
         )}`
     );
@@ -445,18 +420,18 @@ ${lines.join("\n")}`
   );
 }
 
-/* =========================================================
+/* =====================================================
    ADD PET
-========================================================= */
+===================================================== */
 
-async function cmdAddPet(
+async function addPetCommand(
   chatId,
   args
 ) {
   if (args.length < 2) {
     return sendMessage(
       chatId,
-      "Usage: <code>/addpet RobloxId Pet Name</code>"
+      "Usage: /addpet RobloxId Pet Name"
     );
   }
 
@@ -479,12 +454,15 @@ async function cmdAddPet(
       }
     );
 
-  if (!result.addedPets) {
+  if (
+    !result.addedPets ||
+    result.addedPets < 1
+  ) {
     return sendMessage(
       chatId,
       `❌ Pet <b>${escapeHtml(
         petName
-      )}</b> was not found in values.txt.`
+      )}</b> was not found in the backend values.`
     );
   }
 
@@ -498,18 +476,18 @@ async function cmdAddPet(
   );
 }
 
-/* =========================================================
+/* =====================================================
    REMOVE PET
-========================================================= */
+===================================================== */
 
-async function cmdRemovePet(
+async function removePetCommand(
   chatId,
   args
 ) {
   if (args.length < 2) {
     return sendMessage(
       chatId,
-      "Usage: <code>/removepet RobloxId Pet Name</code>"
+      "Usage: /removepet RobloxId Pet Name"
     );
   }
 
@@ -531,32 +509,36 @@ async function cmdRemovePet(
   return sendMessage(
     chatId,
     `✅ Removed <b>${escapeHtml(
-      result.removedPet.name
-    )}</b> from <code>${escapeHtml(
+      result.removedPet?.name ||
+      petName
+    )}</b>
+
+User:
+<code>${escapeHtml(
       robloxId
-    )}</code>.`
+    )}</code>`
   );
 }
 
-/* =========================================================
-   TRANSFER PET
-========================================================= */
+/* =====================================================
+   TRANSFER
+===================================================== */
 
-async function cmdTransferPet(
+async function transferPetCommand(
   chatId,
   args
 ) {
   if (args.length < 3) {
     return sendMessage(
       chatId,
-      "Usage: <code>/transferpet FromId ToId Pet Name</code>"
+      "Usage: /transferpet FromId ToId Pet Name"
     );
   }
 
-  const fromId =
+  const fromRobloxId =
     args.shift();
 
-  const toId =
+  const toRobloxId =
     args.shift();
 
   const petName =
@@ -566,42 +548,46 @@ async function cmdTransferPet(
     await adminApi(
       "/admin/transfer-pet",
       {
-        fromRobloxId:
-          fromId,
-        toRobloxId:
-          toId,
+        fromRobloxId,
+        toRobloxId,
         petName
       }
     );
 
   return sendMessage(
     chatId,
-    `✅ Transferred <b>${escapeHtml(
-      result.pet.name
+    `✅ <b>PET TRANSFERRED</b>
+
+Pet:
+<b>${escapeHtml(
+      result.pet?.name ||
+      petName
     )}</b>
 
-From: <code>${escapeHtml(
-      fromId
+From:
+<code>${escapeHtml(
+      fromRobloxId
     )}</code>
 
-To: <code>${escapeHtml(
-      toId
+To:
+<code>${escapeHtml(
+      toRobloxId
     )}</code>`
   );
 }
 
-/* =========================================================
+/* =====================================================
    BALANCE
-========================================================= */
+===================================================== */
 
-async function cmdBalance(
+async function balanceCommand(
   chatId,
   args
 ) {
   if (args.length < 2) {
     return sendMessage(
       chatId,
-      "Usage: <code>/balance RobloxId Amount</code>\n\nUse a positive number to add or a negative number to remove."
+      "Usage: /balance RobloxId Amount"
     );
   }
 
@@ -629,38 +615,40 @@ async function cmdBalance(
 
   return sendMessage(
     chatId,
-    `✅ Balance changed by <b>${money(
-      amount
-    )}</b>.
+    `✅ Balance changed.
 
-New balance: <b>${money(
+Change:
+<b>${formatNumber(
+      amount
+    )}</b>
+
+New balance:
+<b>${formatNumber(
       result.user.balance
     )}</b>`
   );
 }
 
-async function cmdSetBalance(
+async function setBalanceCommand(
   chatId,
   args
 ) {
   if (args.length < 2) {
     return sendMessage(
       chatId,
-      "Usage: <code>/setbalance RobloxId Amount</code>"
+      "Usage: /setbalance RobloxId Amount"
     );
   }
 
   const robloxId =
     args[0];
 
-  const amount =
+  const balance =
     Number(args[1]);
 
   if (
-    !Number.isFinite(
-      amount
-    ) ||
-    amount < 0
+    !Number.isFinite(balance) ||
+    balance < 0
   ) {
     return sendMessage(
       chatId,
@@ -673,23 +661,25 @@ async function cmdSetBalance(
       "/admin/set-balance",
       {
         robloxId,
-        balance: amount
+        balance
       }
     );
 
   return sendMessage(
     chatId,
-    `✅ Balance set to <b>${money(
+    `✅ Balance set to:
+
+<b>${formatNumber(
       result.user.balance
-    )}</b>.`
+    )}</b>`
   );
 }
 
-/* =========================================================
+/* =====================================================
    COINFLIPS
-========================================================= */
+===================================================== */
 
-async function cmdCoinflips(
+async function coinflipsCommand(
   chatId
 ) {
   const data =
@@ -703,48 +693,62 @@ async function cmdCoinflips(
   if (!flips.length) {
     return sendMessage(
       chatId,
-      "There are no active coinflips."
+      "There are currently no active coinflips."
     );
   }
 
-  const lines =
+  const output =
     flips
       .slice(0, 30)
       .map(
         (flip, index) =>
           `<b>${index + 1}. ${escapeHtml(
-            flip.username
+            flip.username ||
+            "Unknown"
           )}</b>
-ID: <code>${escapeHtml(
+
+ID:
+<code>${escapeHtml(
             flip.id
           )}</code>
-Pet: ${escapeHtml(
+
+Pet:
+${escapeHtml(
             flip.petName
           )}
-Value: ${money(
+
+Value:
+<b>${formatNumber(
             flip.petValue
-          )}
-Side: ${escapeHtml(
+          )}</b>
+
+Side:
+${escapeHtml(
             flip.side
           )}`
-      );
+      )
+      .join("\n\n");
 
   return sendMessage(
     chatId,
     `<b>ACTIVE COINFLIPS</b>
 
-${lines.join("\n\n")}`
+${output}`
   );
 }
 
-async function cmdCancelCoinflip(
+/* =====================================================
+   CANCEL
+===================================================== */
+
+async function cancelCoinflipCommand(
   chatId,
   args
 ) {
   if (!args[0]) {
     return sendMessage(
       chatId,
-      "Usage: <code>/cancelcf FlipId</code>"
+      "Usage: /cancelcf FlipId"
     );
   }
 
@@ -760,20 +764,26 @@ async function cmdCancelCoinflip(
     chatId,
     `✅ Coinflip cancelled.
 
-Pet refunded: <b>${escapeHtml(
-      result.flip.petName
+Refunded:
+<b>${escapeHtml(
+      result.flip?.petName ||
+      "Pet"
     )}</b>`
   );
 }
 
-async function cmdJoinCoinflip(
+/* =====================================================
+   JOIN
+===================================================== */
+
+async function joinCoinflipCommand(
   chatId,
   args
 ) {
   if (args.length < 2) {
     return sendMessage(
       chatId,
-      "Usage: <code>/joincf FlipId RobloxId [Pet Name]</code>"
+      "Usage: /joincf FlipId RobloxId [Pet Name]"
     );
   }
 
@@ -784,8 +794,7 @@ async function cmdJoinCoinflip(
     args.shift();
 
   const petName =
-    args.join(" ")
-      .trim();
+    args.join(" ");
 
   const result =
     await adminApi(
@@ -794,44 +803,51 @@ async function cmdJoinCoinflip(
         flipId,
         robloxId,
         ...(petName
-          ? {
-              petName
-            }
+          ? { petName }
           : {})
       }
     );
 
   return sendMessage(
     chatId,
-    `🎲 <b>COINFLIP JOINED</b>
+    `🎲 <b>COINFLIP COMPLETE</b>
 
-Flip: <code>${escapeHtml(
+Flip:
+<code>${escapeHtml(
       flipId
     )}</code>
 
-Player: <code>${escapeHtml(
+Player:
+<code>${escapeHtml(
       robloxId
     )}</code>
 
-Pet used: <b>${escapeHtml(
-      result.petName
+Pet:
+<b>${escapeHtml(
+      result.petName ||
+      petName ||
+      "Pet"
     )}</b>
 
-Toss: <b>${escapeHtml(
-      result.toss
+Toss:
+<b>${escapeHtml(
+      result.toss ||
+      "Unknown"
     )}</b>
 
-Winner: <b>${escapeHtml(
-      result.winner.username
+Winner:
+<b>${escapeHtml(
+      result.winner?.username ||
+      "Unknown"
     )}</b>`
   );
 }
 
-/* =========================================================
+/* =====================================================
    STATUS
-========================================================= */
+===================================================== */
 
-async function cmdStatus(
+async function statusCommand(
   chatId
 ) {
   const data =
@@ -843,31 +859,26 @@ async function cmdStatus(
     chatId,
     `<b>ADMFLIP STATUS</b>
 
-Server: ${
-      data.online
-        ? "🟢 Online"
-        : "🔴 Offline"
-    }
+Server:
+🟢 Online
 
-Online users: <b>${
-      data.onlineUsers ?? 0
-    }</b>
+Online users:
+<b>${data.onlineUsers ?? 0}</b>
 
-Active coinflips: <b>${
-      data.activeCoinflips
-    }</b>
+Active coinflips:
+<b>${data.activeCoinflips ?? 0}</b>
 
-Total coinflips: <b>${
-      data.totalCoinflips ?? 0
-    }</b>
+Total coinflips:
+<b>${data.totalCoinflips ?? 0}</b>
 
-Total active coinflip value: <b>${money(
+Active value:
+<b>${formatNumber(
       data.totalCoinflipValue
     )}</b>`
   );
 }
 
-async function cmdOnline(
+async function onlineCommand(
   chatId
 ) {
   const data =
@@ -877,13 +888,13 @@ async function cmdOnline(
 
   return sendMessage(
     chatId,
-    `👥 <b>ONLINE USERS:</b> ${
-      data.onlineUsers ?? 0
-    }`
+    `👥 <b>ONLINE USERS</b>
+
+<b>${data.onlineUsers ?? 0}</b>`
   );
 }
 
-async function cmdTotalCoinflips(
+async function totalCoinflipsCommand(
   chatId
 ) {
   const data =
@@ -893,15 +904,15 @@ async function cmdTotalCoinflips(
 
   return sendMessage(
     chatId,
-    `🎲 <b>TOTAL COINFLIPS:</b> ${
-      data.totalCoinflips ?? 0
-    }`
+    `🎲 <b>TOTAL COINFLIPS</b>
+
+<b>${data.totalCoinflips ?? 0}</b>`
   );
 }
 
-/* =========================================================
-   COMMAND ROUTER
-========================================================= */
+/* =====================================================
+   ROUTER
+===================================================== */
 
 async function handleMessage(
   message
@@ -913,166 +924,164 @@ async function handleMessage(
   const chatId =
     message.chat.id;
 
-  const text =
-    clean(message.text);
-
   if (!isAdmin(message)) {
-    await sendMessage(
+    return sendMessage(
       chatId,
       "❌ You are not authorized to use this bot."
     );
-
-    return;
   }
 
   const command =
-    commandName(text);
+    commandName(
+      message.text
+    );
 
   const args =
-    argsOf(text);
+    commandArgs(
+      message.text
+    );
 
   try {
     switch (command) {
       case "/start":
-        return cmdStart(
+        return startCommand(
           chatId
         );
 
       case "/commands":
       case "/help":
-        return cmdCommands(
+        return commandsCommand(
           chatId
         );
 
       case "/user":
-        return cmdUser(
+        return userCommand(
           chatId,
           args
         );
 
       case "/lookup":
-        return cmdLookup(
+        return lookupCommand(
           chatId,
           args
         );
 
       case "/pets":
-        return cmdPets(
+        return petsCommand(
           chatId,
           args
         );
 
       case "/addpet":
-        return cmdAddPet(
+        return addPetCommand(
           chatId,
           args
         );
 
       case "/removepet":
       case "/remove_pet":
-        return cmdRemovePet(
+        return removePetCommand(
           chatId,
           args
         );
 
       case "/transferpet":
       case "/transfer_pet":
-        return cmdTransferPet(
+        return transferPetCommand(
           chatId,
           args
         );
 
       case "/balance":
-        return cmdBalance(
+        return balanceCommand(
           chatId,
           args
         );
 
       case "/setbalance":
-        return cmdSetBalance(
+        return setBalanceCommand(
           chatId,
           args
         );
 
       case "/coinflips":
       case "/coinflip":
-        return cmdCoinflips(
+        return coinflipsCommand(
           chatId
         );
 
       case "/cancelcf":
       case "/cancel_coinflip":
-        return cmdCancelCoinflip(
+        return cancelCoinflipCommand(
           chatId,
           args
         );
 
       case "/joincf":
       case "/join_coinflip":
-        return cmdJoinCoinflip(
+        return joinCoinflipCommand(
           chatId,
           args
         );
 
       case "/status":
-        return cmdStatus(
+        return statusCommand(
           chatId
         );
 
       case "/online":
-        return cmdOnline(
+        return onlineCommand(
           chatId
         );
 
       case "/totalcf":
       case "/totalcoinflips":
-        return cmdTotalCoinflips(
+        return totalCoinflipsCommand(
           chatId
         );
 
       default:
         return sendMessage(
           chatId,
-          `Unknown command.
-
-Use /commands to see the available commands.`
+          "❌ Unknown command.\n\nUse /commands."
         );
     }
   } catch (error) {
     console.error(
-      "[TELEGRAM COMMAND ERROR]",
+      "[TELEGRAM]",
       error
     );
 
     return sendMessage(
       chatId,
-      `❌ <b>Error</b>
+      `❌ <b>Command failed</b>
 
 ${escapeHtml(
         error.message ||
-        "Something went wrong."
+        "Unknown error."
       )}`
     );
   }
 }
 
-/* =========================================================
+/* =====================================================
    POLLING
-========================================================= */
+===================================================== */
 
 async function poll() {
-  if (running) {
+  if (polling) {
     return;
   }
 
-  running = true;
+  polling = true;
 
   try {
     const updates =
       await telegram(
         "getUpdates",
         {
-          offset,
+          offset:
+            updateOffset,
           timeout: 25,
           allowed_updates: [
             "message"
@@ -1083,7 +1092,7 @@ async function poll() {
     for (
       const update of updates
     ) {
-      offset =
+      updateOffset =
         update.update_id + 1;
 
       try {
@@ -1092,34 +1101,34 @@ async function poll() {
         );
       } catch (error) {
         console.error(
-          "[TELEGRAM UPDATE ERROR]",
+          "[TELEGRAM UPDATE]",
           error
         );
       }
     }
   } catch (error) {
     console.error(
-      "[TELEGRAM POLLING ERROR]",
+      "[TELEGRAM POLL]",
       error.message
     );
 
     await new Promise(
-      (resolve) =>
+      resolve =>
         setTimeout(
           resolve,
           3000
         )
     );
   } finally {
-    running = false;
+    polling = false;
   }
 
   setImmediate(poll);
 }
 
-/* =========================================================
+/* =====================================================
    START
-========================================================= */
+===================================================== */
 
 async function startBot() {
   try {
@@ -1129,7 +1138,7 @@ async function startBot() {
       );
 
     console.log(
-      `[TELEGRAM] Logged in as @${me.username}`
+      `[TELEGRAM] Connected as @${me.username}`
     );
 
     await telegram(
@@ -1145,107 +1154,73 @@ async function startBot() {
       {
         commands: [
           {
-            command:
-              "commands",
-            description:
-              "Show all commands"
+            command: "commands",
+            description: "Show commands"
           },
           {
-            command:
-              "user",
-            description:
-              "View a user"
+            command: "user",
+            description: "View user"
           },
           {
-            command:
-              "lookup",
-            description:
-              "Find Roblox user"
+            command: "lookup",
+            description: "Find Roblox user"
           },
           {
-            command:
-              "pets",
-            description:
-              "View user's pets"
+            command: "pets",
+            description: "View pets"
           },
           {
-            command:
-              "addpet",
-            description:
-              "Add a pet"
+            command: "addpet",
+            description: "Add pet"
           },
           {
-            command:
-              "removepet",
-            description:
-              "Remove a pet"
+            command: "removepet",
+            description: "Remove pet"
           },
           {
-            command:
-              "transferpet",
-            description:
-              "Transfer a pet"
+            command: "transferpet",
+            description: "Transfer pet"
           },
           {
-            command:
-              "balance",
-            description:
-              "Change balance"
+            command: "balance",
+            description: "Change balance"
           },
           {
-            command:
-              "setbalance",
-            description:
-              "Set balance"
+            command: "setbalance",
+            description: "Set balance"
           },
           {
-            command:
-              "coinflips",
-            description:
-              "View active coinflips"
+            command: "coinflips",
+            description: "View coinflips"
           },
           {
-            command:
-              "joincf",
-            description:
-              "Join a coinflip"
+            command: "cancelcf",
+            description: "Cancel coinflip"
           },
           {
-            command:
-              "cancelcf",
-            description:
-              "Cancel a coinflip"
+            command: "joincf",
+            description: "Join coinflip"
           },
           {
-            command:
-              "status",
-            description:
-              "Show server status"
+            command: "status",
+            description: "Server status"
           },
           {
-            command:
-              "online",
-            description:
-              "Show online site users"
+            command: "online",
+            description: "Online users"
           },
           {
-            command:
-              "totalcf",
-            description:
-              "Show total coinflips"
+            command: "totalcf",
+            description: "Total coinflips"
           }
         ]
       }
     );
 
-    console.log(
-      "[TELEGRAM] Bot started."
-    );
-
     poll();
   } catch (error) {
     console.error(
-      "[TELEGRAM] Failed to start:",
+      "[TELEGRAM START]",
       error
     );
   }
