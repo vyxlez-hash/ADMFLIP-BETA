@@ -5,16 +5,16 @@
 }
 
 :root {
-  --bg: #090a0f;
-  --panel: #141620;
-  --panel-2: #1b1e2a;
-  --panel-3: #222638;
+  --bg: #050505;
+  --panel: #0b0b0b;
+  --panel-2: #111111;
+  --panel-3: #171717;
 
-  --border: #292d3d;
-  --border-light: #383e53;
+  --border: #8b5cf6;
+  --border-soft: #5b3bb5;
 
-  --text: #f5f5f7;
-  --muted: #969caf;
+  --text: #ffffff;
+  --muted: #a1a1aa;
 
   --purple: #8b5cf6;
   --purple-light: #a78bfa;
@@ -24,9 +24,9 @@
   --red: #f05b67;
 
   --header-height: 78px;
-  --chat-width: 20vw;
-  --chat-min-width: 300px;
-  --chat-max-width: 420px;
+
+  /* Chat is an overlay now */
+  --chat-width: 380px;
 }
 
 html,
@@ -35,14 +35,7 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(
-      circle at 50% -20%,
-      rgba(139, 92, 246, 0.12),
-      transparent 38%
-    ),
-    var(--bg);
-
+  background: #050505;
   color: var(--text);
 
   font-family:
@@ -107,13 +100,7 @@ button:disabled {
   display: grid;
   place-items: center;
 
-  background:
-    radial-gradient(
-      circle at 50% 45%,
-      rgba(139, 92, 246, 0.14),
-      transparent 38%
-    ),
-    var(--bg);
+  background: #050505;
 
   opacity: 1;
   visibility: visible;
@@ -131,42 +118,67 @@ button:disabled {
 
 .loading-brand {
   width: min(260px, 65vw);
+
   display: flex;
   flex-direction: column;
   align-items: center;
+
   gap: 18px;
 }
 
 .loading-logo {
   width: 145px;
   height: 145px;
+
   object-fit: contain;
+
   border-radius: 20px;
-  filter: drop-shadow(0 12px 30px rgba(139, 92, 246, 0.22));
-  animation: loading-logo-in 0.45s ease-out both;
+
+  filter:
+    drop-shadow(0 0 20px rgba(139, 92, 246, 0.35));
+
+  animation:
+    loading-logo-in 0.45s ease-out both;
 }
 
 .loading-line {
   width: 100%;
   height: 3px;
+
   overflow: hidden;
+
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+
+  background: #202020;
 }
 
 .loading-line span {
   display: block;
+
   width: 0;
   height: 100%;
+
   border-radius: inherit;
+
   background: var(--purple);
-  box-shadow: 0 0 16px rgba(139, 92, 246, 0.65);
-  animation: loading-line-grow 0.65s cubic-bezier(.22, 1, .36, 1) forwards;
+
+  box-shadow:
+    0 0 16px rgba(139, 92, 246, 0.65);
+
+  animation:
+    loading-line-grow 0.65s
+    cubic-bezier(.22, 1, .36, 1)
+    forwards;
 }
 
 @keyframes loading-line-grow {
-  from { width: 0; }
-  to { width: 100%; }
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 100%;
+  }
 }
 
 @keyframes loading-logo-in {
@@ -174,17 +186,10 @@ button:disabled {
     opacity: 0;
     transform: scale(0.92);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .loading-logo,
-  .loading-line span {
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
   }
 }
 
@@ -192,11 +197,10 @@ button:disabled {
    HEADER
    ========================================================= */
 
-
 header {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 400;
 
   height: var(--header-height);
 
@@ -205,11 +209,12 @@ header {
 
   padding: 0 25px;
 
-  background: rgba(15, 16, 23, 0.96);
+  background: #050505;
 
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--purple);
 
-  backdrop-filter: blur(15px);
+  box-shadow:
+    0 4px 25px rgba(0, 0, 0, 0.35);
 }
 
 .brand {
@@ -218,7 +223,7 @@ header {
 
   gap: 8px;
 
-  color: var(--text);
+  color: white;
   text-decoration: none;
 
   min-width: 130px;
@@ -228,12 +233,13 @@ header {
   width: 112px;
   height: 68px;
 
-  object-fit: cover;
-  object-position: center;
-  border-radius: 10px;
-  filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.22));
-}
+  object-fit: contain;
 
+  border-radius: 10px;
+
+  filter:
+    drop-shadow(0 0 14px rgba(139, 92, 246, 0.35));
+}
 
 .nav {
   display: flex;
@@ -246,7 +252,11 @@ header {
 }
 
 .nav-item {
-  border: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  border: 1px solid transparent;
 
   background: transparent;
 
@@ -260,21 +270,17 @@ header {
 
   transition:
     color 0.15s,
-    background 0.15s;
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .nav-item:hover,
 .nav-item.active {
-  color: var(--purple-light);
+  color: white;
 
-  background:
-    rgba(139, 92, 246, 0.12);
-}
+  background: #111111;
 
-.nav-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+  border-color: var(--purple);
 }
 
 .nav-icon {
@@ -300,7 +306,7 @@ header {
 }
 
 /* =========================================================
-   ACCOUNT
+   ACCOUNT / LOGIN
    ========================================================= */
 
 .user-box {
@@ -316,6 +322,25 @@ header {
   align-items: center;
 
   gap: 8px;
+
+  background: #000000 !important;
+  color: #ffffff !important;
+
+  border: 1px solid var(--purple) !important;
+
+  box-shadow:
+    0 0 15px rgba(139, 92, 246, 0.12);
+}
+
+.login-button:hover,
+.roblox-login-action:hover {
+  background: #111111 !important;
+  color: #ffffff !important;
+
+  border-color: var(--purple-light) !important;
+
+  box-shadow:
+    0 0 20px rgba(139, 92, 246, 0.22);
 }
 
 .login-button img {
@@ -323,23 +348,8 @@ header {
   height: 22px;
 
   object-fit: contain;
-}
 
-.login-button,
-.roblox-login-action {
-  background: #000 !important;
-  color: #fff !important;
-  border: 1px solid #333 !important;
-}
-
-.login-button:hover,
-.roblox-login-action:hover {
-  background: #111 !important;
-  color: #fff !important;
-}
-
-.login-button img {
-  filter: brightness(0) invert(1);
+  filter: none;
 }
 
 .login-modal-box .roblox-login-action {
@@ -354,9 +364,9 @@ header {
 
   padding: 4px 7px;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
-  background: var(--panel-2);
+  background: #0b0b0b;
 
   border-radius: 999px;
 }
@@ -368,6 +378,8 @@ header {
   object-fit: cover;
 
   border-radius: 50%;
+
+  border: 1px solid var(--purple);
 }
 
 .account-box span {
@@ -378,6 +390,10 @@ header {
 }
 
 .account-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
   border: 0;
 
   background: transparent;
@@ -392,12 +408,6 @@ header {
   font-weight: 700;
 }
 
-.account-menu-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .account-menu-btn i {
   font-size: 15px;
 }
@@ -405,8 +415,7 @@ header {
 .account-menu-btn:hover {
   color: white;
 
-  background:
-    rgba(255, 255, 255, 0.05);
+  background: #171717;
 }
 
 /* =========================================================
@@ -414,7 +423,7 @@ header {
    ========================================================= */
 
 .btn {
-  border: 0;
+  border: 1px solid var(--purple);
 
   border-radius: 9px;
 
@@ -424,7 +433,8 @@ header {
 
   transition:
     filter 0.15s,
-    transform 0.08s;
+    transform 0.08s,
+    box-shadow 0.15s;
 }
 
 .btn:active {
@@ -436,6 +446,8 @@ header {
 
   color: white;
 
+  border-color: var(--purple);
+
   box-shadow:
     0 6px 20px
     rgba(139, 92, 246, 0.2);
@@ -445,6 +457,10 @@ header {
   background: var(--purple-dark);
 
   filter: brightness(1.12);
+
+  box-shadow:
+    0 8px 25px
+    rgba(139, 92, 246, 0.28);
 }
 
 .full-width {
@@ -455,6 +471,12 @@ header {
    MAIN
    ========================================================= */
 
+/*
+   IMPORTANT:
+   Chat no longer changes main width.
+   The website stays 100% normal when chat opens.
+*/
+
 main {
   width: min(1180px, calc(100% - 40px));
 
@@ -462,18 +484,15 @@ main {
 
   padding: 32px 0 60px;
 
-  transition:
-    width 0.25s ease,
-    margin-left 0.25s ease;
+  transition: none;
 }
 
+/* Completely disable the old shrinking behavior */
 body.chat-open main {
-  width: calc(100% - var(--chat-width) - 45px);
+  width: min(1180px, calc(100% - 40px));
 
-  margin-left:
-    calc(var(--chat-width) + 20px);
-
-  margin-right: 20px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .page {
@@ -508,21 +527,16 @@ body.chat-open main {
    ========================================================= */
 
 .panel {
-  background:
-    linear-gradient(
-      145deg,
-      rgba(25, 28, 40, 0.98),
-      rgba(17, 19, 28, 0.98)
-    );
+  background: #0b0b0b;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
   border-radius: 14px;
 
   padding: 20px;
 
   box-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.17);
+    0 10px 35px rgba(0, 0, 0, 0.25);
 }
 
 .panel h2 {
@@ -550,9 +564,9 @@ body.chat-open main {
 .stat-card {
   padding: 18px;
 
-  background: var(--panel);
+  background: #0b0b0b;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
   border-radius: 12px;
 }
@@ -608,7 +622,7 @@ body.chat-open main {
 
   padding: 10px;
 
-  background: var(--panel-2);
+  background: #111111;
 
   border: 1px solid var(--purple);
 
@@ -633,9 +647,9 @@ body.chat-open main {
 
   padding: 13px;
 
-  background: var(--panel-2);
+  background: #111111;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
   border-radius: 11px;
 }
@@ -657,6 +671,8 @@ body.chat-open main {
   object-fit: cover;
 
   border-radius: 10px;
+
+  border: 1px solid var(--purple);
 }
 
 .coinflip-player strong {
@@ -697,8 +713,9 @@ body.chat-open main {
 
   border-radius: 7px;
 
-  background:
-    rgba(139, 92, 246, 0.12);
+  background: #171717;
+
+  border: 1px solid var(--purple);
 
   color: var(--purple-light);
 
@@ -738,11 +755,11 @@ body.chat-open main {
 .value-search {
   width: 330px;
 
-  background: var(--bg);
+  background: #050505;
 
   color: var(--text);
 
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--purple);
 
   border-radius: 9px;
 
@@ -752,7 +769,7 @@ body.chat-open main {
 }
 
 .value-search:focus {
-  border-color: var(--purple);
+  border-color: var(--purple-light);
 
   box-shadow:
     0 0 0 3px
@@ -779,14 +796,9 @@ body.chat-open main {
 
   padding: 15px;
 
-  background:
-    linear-gradient(
-      145deg,
-      var(--panel-2),
-      var(--panel)
-    );
+  background: #0b0b0b;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
   border-radius: 13px;
 
@@ -799,14 +811,15 @@ body.chat-open main {
 .pet-card:hover {
   transform: translateY(-3px);
 
-  border-color: var(--purple);
+  border-color: var(--purple-light);
 
   box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.3);
+    0 10px 30px
+    rgba(0, 0, 0, 0.3);
 }
 
 .pet-card.selected {
-  border-color: var(--purple);
+  border-color: var(--purple-light);
 
   box-shadow:
     0 0 0 2px
@@ -858,7 +871,7 @@ body.chat-open main {
 
   padding-top: 12px;
 
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--purple);
 
   color: var(--muted);
 
@@ -880,7 +893,7 @@ body.chat-open main {
 
   inset: 0;
 
-  z-index: 500;
+  z-index: 800;
 
   display: flex;
 
@@ -890,9 +903,9 @@ body.chat-open main {
   padding: 20px;
 
   background:
-    rgba(0, 0, 0, 0.78);
+    rgba(0, 0, 0, 0.88);
 
-  backdrop-filter: blur(7px);
+  backdrop-filter: blur(8px);
 }
 
 .modal-box {
@@ -906,19 +919,14 @@ body.chat-open main {
 
   padding: 25px;
 
-  background:
-    linear-gradient(
-      145deg,
-      #1a1d2a,
-      #10121a
-    );
+  background: #080808;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
   border-radius: 16px;
 
   box-shadow:
-    0 25px 80px rgba(0, 0, 0, 0.55);
+    0 25px 80px rgba(0, 0, 0, 0.75);
 }
 
 .large-modal {
@@ -938,9 +946,9 @@ body.chat-open main {
   width: 34px;
   height: 34px;
 
-  border: 0;
+  border: 1px solid var(--purple);
 
-  background: transparent;
+  background: #0b0b0b;
 
   color: var(--muted);
 
@@ -952,8 +960,9 @@ body.chat-open main {
 .modal-close:hover {
   color: white;
 
-  background:
-    rgba(255, 255, 255, 0.05);
+  background: #171717;
+
+  border-color: var(--purple-light);
 }
 
 /* =========================================================
@@ -968,7 +977,7 @@ body.chat-open main {
 
   object-fit: cover;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
   border-radius: 10px;
 
@@ -988,11 +997,11 @@ body.chat-open main {
 
   min-width: 0;
 
-  background: var(--bg);
+  background: #050505;
 
   color: var(--text);
 
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--purple);
 
   border-radius: 9px;
 
@@ -1002,7 +1011,11 @@ body.chat-open main {
 }
 
 #username:focus {
-  border-color: var(--purple);
+  border-color: var(--purple-light);
+
+  box-shadow:
+    0 0 0 3px
+    rgba(139, 92, 246, 0.1);
 }
 
 .login-profile {
@@ -1010,9 +1023,9 @@ body.chat-open main {
 
   padding: 12px;
 
-  background: var(--panel-2);
+  background: #111111;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
   border-radius: 11px;
 }
@@ -1032,6 +1045,8 @@ body.chat-open main {
   object-fit: cover;
 
   border-radius: 12px;
+
+  border: 1px solid var(--purple);
 }
 
 .login-profile-inner strong {
@@ -1055,7 +1070,7 @@ body.chat-open main {
 
   padding: 14px;
 
-  background: var(--bg);
+  background: #050505;
 
   border: 1px dashed var(--purple);
 
@@ -1139,7 +1154,7 @@ body.chat-open main {
 
   padding-top: 18px;
 
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--purple);
 }
 
 .side-title {
@@ -1163,9 +1178,9 @@ body.chat-open main {
 .side-btn {
   padding: 11px;
 
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--purple);
 
-  background: var(--panel-2);
+  background: #111111;
 
   color: var(--muted);
 
@@ -1178,10 +1193,13 @@ body.chat-open main {
 .side-btn.selected {
   color: white;
 
-  background:
-    rgba(139, 92, 246, 0.14);
+  background: #171717;
 
-  border-color: var(--purple);
+  border-color: var(--purple-light);
+
+  box-shadow:
+    0 0 15px
+    rgba(139, 92, 246, 0.12);
 }
 
 /* =========================================================
@@ -1189,9 +1207,9 @@ body.chat-open main {
    ========================================================= */
 
 .profile-card {
-  background: var(--panel);
+  background: #0b0b0b;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
   border-radius: 14px;
 
@@ -1243,9 +1261,9 @@ body.chat-open main {
 .profile-stat {
   padding: 15px;
 
-  background: var(--panel-2);
+  background: #111111;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
   border-radius: 10px;
 }
@@ -1272,50 +1290,61 @@ body.chat-open main {
    ========================================================= */
 
 /*
-  Chat occupies the left 20% of the screen.
-  The site itself shrinks while chat is open.
+   IMPORTANT FIX:
+
+   Chat is a TRUE OVERLAY.
+
+   It does NOT:
+   - change main width
+   - move main
+   - make the page 20% smaller
+   - push content
+   - create invisible space
+
+   It simply slides over the left side.
 */
 
 .chat-panel {
   position: fixed;
 
-  z-index: 300;
+  z-index: 700;
 
   top: var(--header-height);
-
   left: 0;
   bottom: 0;
 
   width: var(--chat-width);
 
-  min-width: var(--chat-min-width);
-  max-width: var(--chat-max-width);
-
   display: flex;
 
   flex-direction: column;
 
-  background:
-    linear-gradient(
-      180deg,
-      #151722,
-      #0c0e14
-    );
+  background: #080808;
 
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--purple);
 
   box-shadow:
-    12px 0 35px
-    rgba(0, 0, 0, 0.25);
+    15px 0 45px
+    rgba(0, 0, 0, 0.6);
 
-  transform: translateX(-105%);
+  transform: translateX(-110%);
+
+  visibility: hidden;
+
+  opacity: 0;
 
   transition:
-    transform 0.25s ease;
+    transform 0.25s ease,
+    opacity 0.2s ease,
+    visibility 0.25s ease;
 }
 
 body.chat-open .chat-panel {
   transform: translateX(0);
+
+  visibility: visible;
+
+  opacity: 1;
 }
 
 .chat-header {
@@ -1328,10 +1357,9 @@ body.chat-open .chat-panel {
 
   padding: 15px;
 
-  background:
-    rgba(20, 22, 32, 0.96);
+  background: #0b0b0b;
 
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--purple);
 }
 
 .chat-header strong {
@@ -1369,9 +1397,9 @@ body.chat-open .chat-panel {
   width: 32px;
   height: 32px;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
-  background: var(--panel-2);
+  background: #111111;
 
   color: var(--muted);
 
@@ -1383,7 +1411,9 @@ body.chat-open .chat-panel {
 .chat-close:hover {
   color: white;
 
-  border-color: var(--purple);
+  border-color: var(--purple-light);
+
+  background: #171717;
 }
 
 .chat-messages {
@@ -1394,6 +1424,8 @@ body.chat-open .chat-panel {
   overflow-y: auto;
 
   padding: 12px;
+
+  background: #050505;
 }
 
 .chat-message {
@@ -1407,8 +1439,7 @@ body.chat-open .chat-panel {
 }
 
 .chat-message:hover {
-  background:
-    rgba(255, 255, 255, 0.025);
+  background: #111111;
 }
 
 .chat-avatar {
@@ -1421,7 +1452,9 @@ body.chat-open .chat-panel {
 
   border-radius: 9px;
 
-  background: var(--panel-3);
+  background: #111111;
+
+  border: 1px solid var(--purple);
 }
 
 .chat-content {
@@ -1450,11 +1483,9 @@ body.chat-open .chat-panel {
 .chat-announcement {
   display: block;
 
-  background:
-    rgba(139, 92, 246, 0.08);
+  background: #111111;
 
-  border: 1px solid
-    rgba(139, 92, 246, 0.2);
+  border: 1px solid var(--purple);
 
   margin-bottom: 8px;
 }
@@ -1477,9 +1508,9 @@ body.chat-open .chat-panel {
 
   padding: 12px;
 
-  background: var(--panel);
+  background: #0b0b0b;
 
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--purple);
 }
 
 .chat-form input {
@@ -1487,11 +1518,11 @@ body.chat-open .chat-panel {
 
   min-width: 0;
 
-  background: var(--bg);
+  background: #050505;
 
   color: var(--text);
 
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--purple);
 
   border-radius: 9px;
 
@@ -1501,11 +1532,15 @@ body.chat-open .chat-panel {
 }
 
 .chat-form input:focus {
-  border-color: var(--purple);
+  border-color: var(--purple-light);
+
+  box-shadow:
+    0 0 0 3px
+    rgba(139, 92, 246, 0.1);
 }
 
 .chat-send {
-  border: 0;
+  border: 1px solid var(--purple);
 
   background: var(--purple);
 
@@ -1520,6 +1555,18 @@ body.chat-open .chat-panel {
 
 .chat-send:hover {
   background: var(--purple-dark);
+
+  border-color: var(--purple-light);
+}
+
+.chat-online-icon {
+  color: var(--green);
+
+  font-size: 13px;
+
+  vertical-align: -1px;
+
+  margin-right: 3px;
 }
 
 /* =========================================================
@@ -1536,9 +1583,9 @@ body.chat-open .chat-panel {
 
   padding: 11px 17px;
 
-  background: var(--panel-3);
+  background: #111111;
 
-  border: 1px solid var(--border);
+  border: 1px solid var(--purple);
 
   color: white;
 
@@ -1546,7 +1593,7 @@ body.chat-open .chat-panel {
 
   box-shadow:
     0 12px 40px
-    rgba(0, 0, 0, 0.4);
+    rgba(0, 0, 0, 0.5);
 
   opacity: 0;
 
@@ -1568,13 +1615,43 @@ body.chat-open .chat-panel {
 }
 
 /* =========================================================
+   SCROLLBARS
+   ========================================================= */
+
+* {
+  scrollbar-width: thin;
+
+  scrollbar-color:
+    var(--purple)
+    #090909;
+}
+
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #090909;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--purple);
+
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--purple-light);
+}
+
+/* =========================================================
    RESPONSIVE
    ========================================================= */
 
 @media (max-width: 900px) {
-
   :root {
-    --chat-width: 320px;
+    --chat-width: 340px;
   }
 
   .nav {
@@ -1584,17 +1661,9 @@ body.chat-open .chat-panel {
   .coinflip-layout {
     grid-template-columns: 1fr;
   }
-
-  body.chat-open main {
-    width: calc(100% - 340px);
-
-    margin-left: 330px;
-  }
-
 }
 
 @media (max-width: 650px) {
-
   header {
     padding: 0 12px;
   }
@@ -1642,25 +1711,15 @@ body.chat-open .chat-panel {
     flex-direction: column;
   }
 
+  /*
+     On mobile chat becomes almost full-screen,
+     but it STILL overlays instead of shrinking main.
+  */
+
   .chat-panel {
-    width: 100%;
+    width: min(100%, 380px);
 
     min-width: 0;
     max-width: none;
   }
-
-  body.chat-open main {
-    opacity: 0;
-
-    pointer-events: none;
-  }
-
-}
-
-
-.chat-online-icon {
-  color: var(--green);
-  font-size: 13px;
-  vertical-align: -1px;
-  margin-right: 3px;
 }
