@@ -8,6 +8,11 @@
     content="width=device-width, initial-scale=1.0"
   >
 
+  <meta
+    name="theme-color"
+    content="#050505"
+  >
+
   <title>ADMFLIP</title>
 
   <!-- Icons -->
@@ -18,18 +23,19 @@
 
   <link
     rel="stylesheet"
-    href="https://cdn-uicons.flaticon.com/3.0.0/uicons-rounded-bold/css/uicons-rounded-bold.css"
+    href="https://cdn-uicons.flaticon.com/3.0.0/uicons-solid-rounded/css/uicons-solid-rounded.css"
   >
 
-  <!-- Main CSS -->
-  <link rel="stylesheet" href="/style.css">
+  <link
+    rel="stylesheet"
+    href="/style.css"
+  >
 </head>
 
 <body>
 
   <!-- =====================================================
-       STARTUP LOADING SCREEN
-       IMPORTANT: uses logo.png, NOT roblox.png
+       LOADING SCREEN
        ===================================================== -->
 
   <div
@@ -43,6 +49,7 @@
         src="/logo.png"
         class="loading-logo"
         alt="ADMFLIP"
+        onerror="this.style.display='none'"
       >
 
       <div class="loading-line">
@@ -60,17 +67,20 @@
 
   <header>
 
+    <!-- BRAND -->
+
     <a
       href="#coinflip"
       class="brand"
       id="brand"
+      aria-label="ADMFLIP Home"
     >
 
-      <!-- SITE LOGO -->
       <img
         src="/logo.png"
         class="logo"
         alt="ADMFLIP"
+        onerror="this.style.display='none'"
       >
 
     </a>
@@ -78,7 +88,10 @@
 
     <!-- NAVIGATION -->
 
-    <nav class="nav">
+    <nav
+      class="nav"
+      aria-label="Main navigation"
+    >
 
       <button
         type="button"
@@ -138,7 +151,7 @@
 
     <div class="user-box">
 
-      <!-- LOGGED IN ACCOUNT -->
+      <!-- LOGGED-IN ACCOUNT -->
 
       <div
         id="accountBox"
@@ -149,7 +162,7 @@
           id="accountAvatar"
           src="/logo.png"
           class="account-avatar"
-          alt=""
+          alt="User avatar"
         >
 
         <span id="accountUsername">
@@ -186,8 +199,7 @@
       </div>
 
 
-      <!-- LOGIN BUTTON -->
-      <!-- Roblox icon is intentionally kept here -->
+      <!-- LOGIN -->
 
       <button
         type="button"
@@ -210,13 +222,10 @@
 
 
   <!-- =====================================================
-       MAIN SITE
-       IMPORTANT:
-       Chat does NOT resize this.
+       MAIN
        ===================================================== -->
 
-  <main id="mainContent">
-
+  <main>
 
     <!-- ===================================================
          COINFLIP PAGE
@@ -318,8 +327,7 @@
 
       <div class="coinflip-layout">
 
-
-        <!-- CREATE PANEL -->
+        <!-- CREATE -->
 
         <section class="panel create-panel">
 
@@ -334,7 +342,6 @@
           <p class="muted">
             Select one of your pets and choose your side.
           </p>
-
 
           <button
             type="button"
@@ -401,7 +408,6 @@
         <h2>
           My History
         </h2>
-
 
         <div
           id="history"
@@ -544,11 +550,7 @@
 
 
   <!-- =====================================================
-       CHAT PANEL
-       
-       IMPORTANT:
-       This is outside <main>.
-       It overlays the site instead of shrinking it.
+       CHAT
        ===================================================== -->
 
   <aside
@@ -642,6 +644,9 @@
   <div
     id="loginModal"
     class="modal hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="loginModalTitle"
   >
 
     <div class="modal-box login-modal-box">
@@ -656,8 +661,6 @@
       </button>
 
 
-      <!-- LOGIN BANNER -->
-
       <img
         src="/login-banner.png"
         class="login-banner"
@@ -670,7 +673,7 @@
       </div>
 
 
-      <h2>
+      <h2 id="loginModalTitle">
         Login with Roblox
       </h2>
 
@@ -696,7 +699,6 @@
             required
           >
 
-
           <button
             type="submit"
             id="continueLogin"
@@ -710,7 +712,7 @@
       </div>
 
 
-      <!-- FOUND PROFILE -->
+      <!-- PROFILE -->
 
       <div
         id="loginProfile"
@@ -718,7 +720,7 @@
       ></div>
 
 
-      <!-- VERIFICATION PHRASE -->
+      <!-- PHRASE -->
 
       <div
         id="phrase"
@@ -754,6 +756,9 @@
   <div
     id="createModal"
     class="modal hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="createModalTitle"
   >
 
     <div class="modal-box large-modal">
@@ -773,7 +778,7 @@
       </div>
 
 
-      <h2>
+      <h2 id="createModalTitle">
         Choose Your Pet
       </h2>
 
@@ -797,7 +802,7 @@
       </div>
 
 
-      <!-- SIDE SELECTION -->
+      <!-- SIDE -->
 
       <div
         id="sideArea"
@@ -865,3 +870,4 @@
 
 </body>
 </html>
+
