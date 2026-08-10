@@ -1,6 +1,10 @@
 (() => {
   "use strict";
 
+  /* =====================================================
+     CONFIG
+  ===================================================== */
+
   const DEFAULT_BACKEND =
     "https://admflip-beta-production-b837.up.railway.app";
 
@@ -20,13 +24,17 @@
 
   const state = {
     page: "coinflip",
+
     user: null,
+
     verification: null,
 
     pets: [],
+
     inventory: [],
 
     selectedPet: null,
+
     selectedSide: null,
 
     coinflips: [],
@@ -34,13 +42,12 @@
     chatOpen: false,
 
     /*
-     * IMPORTANT:
-     * Restore the login token from localStorage.
-     * This is what keeps the user logged in after refresh.
-     */
+      IMPORTANT:
+      Read the saved token immediately when the app starts.
+      This survives a browser refresh.
+    */
     token: localStorage.getItem("admflip_token") || null
   };
-
 
   /* =====================================================
      HELPERS
@@ -55,20 +62,17 @@
   const el = (id) =>
     document.getElementById(id);
 
-
   function show(node) {
     if (node) {
       node.classList.remove("hidden");
     }
   }
 
-
   function hide(node) {
     if (node) {
       node.classList.add("hidden");
     }
   }
-
 
   function escapeHTML(value) {
     return String(value ?? "")
@@ -79,7 +83,6 @@
       .replace(/'/g, "&#039;");
   }
 
-
   function formatNumber(value) {
     const n = Number(value);
 
@@ -89,7 +92,6 @@
 
     return n.toLocaleString();
   }
-
 
   function formatValue(value) {
     const n = Number(value);
@@ -125,7 +127,6 @@
     return n.toLocaleString();
   }
 
-
   function petName(pet) {
     if (typeof pet === "string") {
       return pet;
@@ -139,7 +140,6 @@
       "Unknown Pet"
     );
   }
-
 
   function petValue(pet) {
     if (typeof pet === "string") {
@@ -157,7 +157,6 @@
       ) || 0
     );
   }
-
 
   function petImage(pet) {
     const name = petName(pet);
@@ -186,7 +185,6 @@
     );
   }
 
-
   function robloxAvatar(id) {
     if (!id) {
       return "/logo.png";
@@ -198,88 +196,6 @@
       "&width=150&height=150&format=png"
     );
   }
-
-
-  /* =====================================================
-     TOKEN MANAGEMENT
-  ===================================================== */
-
-  function saveToken(token) {
-    if (!token) {
-      return;
-    }
-
-    state.token = String(token);
-
-    try {
-      localStorage.setItem(
-        "admflip_token",
-        state.token
-      );
-    } catch (error) {
-      console.warn(
-        "Could not save ADMFLIP token:",
-        error
-      );
-    }
-  }
-
-
-  function getSavedToken() {
-    try {
-      return (
-        localStorage.getItem(
-          "admflip_token"
-        ) || null
-      );
-    } catch {
-      return null;
-    }
-  }
-
-
-  function clearToken() {
-    state.token = null;
-
-    try {
-      localStorage.removeItem(
-        "admflip_token"
-      );
-    } catch {}
-  }
-
-
-  /*
-   * Some backends return:
-   *
-   * { token: "..." }
-   *
-   * while others return:
-   *
-   * { accessToken: "..." }
-   *
-   * or:
-   *
-   * { data: { token: "..." } }
-   *
-   * Support all of them.
-   */
-
-  function extractToken(data) {
-    if (!data || typeof data !== "object") {
-      return null;
-    }
-
-    return (
-      data.token ||
-      data.accessToken ||
-      data.jwt ||
-      data.data?.token ||
-      data.data?.accessToken ||
-      null
-    );
-  }
-
 
   /* =====================================================
      TOAST
@@ -293,6 +209,7 @@
     }
 
     box.textContent = message;
+
     box.classList.add("show");
 
     clearTimeout(box._timeout);
@@ -301,7 +218,6 @@
       box.classList.remove("show");
     }, 2800);
   }
-
 
   /* =====================================================
      API
@@ -314,36 +230,35 @@
         : "/" + String(path);
 
     /*
-     * Always use the latest saved token.
-     * This prevents refreshes from accidentally
-     * using an old in-memory value.
-     */
+      Always use the latest token from state.
+      If the page was refreshed, state.token was loaded
+      from localStorage at the top of this file.
+    */
+    const savedToken =
+      localStorage.getItem("admflip_token");
 
-    if (!state.token) {
-      state.token = getSavedToken();
+    if (savedToken && savedToken !== state.token) {
+      state.token = savedToken;
     }
 
     const headers = {
-      Accept: "application/json"
+      Accept: "application/json",
+
+      ...(options.body
+        ? {
+            "Content-Type": "application/json"
+          }
+        : {}),
+
+      ...(state.token
+        ? {
+            Authorization:
+              "Bearer " + state.token
+          }
+        : {}),
+
+      ...(options.headers || {})
     };
-
-    if (options.body) {
-      headers["Content-Type"] =
-        "application/json";
-    }
-
-    if (state.token) {
-      headers["Authorization"] =
-        "Bearer " + state.token;
-    }
-
-    /*
-     * Allow custom headers from the caller.
-     */
-    Object.assign(
-      headers,
-      options.headers || {}
-    );
 
     let response;
 
@@ -351,17 +266,9 @@
       response = await fetch(
         BACKEND + cleanPath,
         {
-          ...options,
-
-          /*
-           * Keep cookies too.
-           * The bearer token is still the primary
-           * persistent authentication mechanism.
-           */
           credentials: "include",
-
           cache: "no-store",
-
+          ...options,
           headers
         }
       );
@@ -403,17 +310,19 @@
           `Request failed (${response.status})`
         );
 
+      /*
+        Keep the HTTP status available so loadAccount()
+        can distinguish a real authentication failure
+        from a temporary backend problem.
+      */
       error.status =
         response.status;
-
-      error.data = data;
 
       throw error;
     }
 
     return data;
   }
-
 
   /* =====================================================
      NAVIGATION
@@ -424,7 +333,6 @@
     values: "valuesPage",
     profile: "profilePage"
   };
-
 
   function openPage(page) {
     if (!pages[page]) {
@@ -451,6 +359,10 @@
 
     $$(".nav-item").forEach(
       (button) => {
+        if (button.id === "topChatButton") {
+          return;
+        }
+
         button.classList.toggle(
           "active",
           button.dataset.page === page
@@ -476,7 +388,6 @@
       "#" + page
     );
   }
-
 
   function setupNavigation() {
     $$(".nav-item").forEach(
@@ -509,7 +420,6 @@
       }
     );
   }
-
 
   /* =====================================================
      ERRORS
@@ -545,7 +455,6 @@
     }
   }
 
-
   /* =====================================================
      LOGIN
   ===================================================== */
@@ -576,8 +485,13 @@
       el("loginProfile")
     );
 
-    hide(el("phrase"));
-    hide(el("verify"));
+    hide(
+      el("phrase")
+    );
+
+    hide(
+      el("verify")
+    );
 
     const message =
       el("loginMessage");
@@ -589,13 +503,11 @@
     state.verification = null;
   }
 
-
   function closeLogin() {
     hide(
       el("loginModal")
     );
   }
-
 
   function makeVerificationPhrase() {
     const words = [
@@ -646,7 +558,6 @@
       `ADMFLIP-${first}-${second}-${number}`
     );
   }
-
 
   async function startVerification() {
     const input =
@@ -715,7 +626,9 @@
         phrase
       );
 
-      show(el("verify"));
+      show(
+        el("verify")
+      );
 
       if (message) {
         message.textContent =
@@ -735,8 +648,9 @@
     }
   }
 
-
-  function renderLoginProfile(user) {
+  function renderLoginProfile(
+    user
+  ) {
     const box =
       el("loginProfile");
 
@@ -783,8 +697,9 @@
     show(box);
   }
 
-
-  function renderPhrase(phrase) {
+  function renderPhrase(
+    phrase
+  ) {
     const box =
       el("phrase");
 
@@ -810,7 +725,6 @@
     show(box);
   }
 
-
   async function verifyRobloxBio() {
     const message =
       el("loginMessage");
@@ -833,6 +747,7 @@
 
     if (button) {
       button.disabled = true;
+
       button.textContent =
         "Checking...";
     }
@@ -872,52 +787,76 @@
       }
 
       /*
-       * SAVE THE TOKEN IMMEDIATELY.
-       *
-       * This is the important part for
-       * keeping login after refresh.
-       */
-      const newToken =
-        extractToken(result);
+        IMPORTANT:
+        Save BOTH the user and token immediately.
+      */
 
-      if (newToken) {
-        saveToken(newToken);
+      if (result.token) {
+        state.token =
+          result.token;
+
+        localStorage.setItem(
+          "admflip_token",
+          result.token
+        );
       }
 
-      state.user =
-        result.user || null;
-
       /*
-       * If backend returned the user
-       * but token is missing, don't pretend
-       * authentication is persistent.
-       */
-      if (!state.user) {
-        await loadAccount();
-      } else {
+        Some backends return result.user.
+        If yours does, use it immediately.
+      */
+      if (result.user) {
+        state.user =
+          result.user;
+
         state.inventory =
           Array.isArray(
-            state.user.inventory
+            result.user.inventory
           )
-            ? state.user.inventory
+            ? result.user.inventory
+            : [];
+      }
+
+      /*
+        Now ask the backend for the complete
+        authenticated account.
+      */
+      const account =
+        await loadAccount();
+
+      /*
+        If /account did not return the user but
+        /check did, don't destroy the successful
+        verification.
+      */
+      if (!state.user && result.user) {
+        state.user =
+          result.user;
+
+        state.inventory =
+          Array.isArray(
+            result.user.inventory
+          )
+            ? result.user.inventory
             : [];
 
         updateAccountUI();
       }
 
       /*
-       * Ask backend for the authenticated
-       * account using the newly saved token.
-       */
-      await loadAccount();
-
+        Make sure the account UI changes NOW,
+        without requiring a refresh.
+      */
       updateAccountUI();
+
+      renderProfile();
 
       closeLogin();
 
       toast(
-        `Verified as ${
+        `Signed in as ${
           state.user?.username ||
+          result.user?.username ||
           "User"
         }`
       );
@@ -928,6 +867,7 @@
         loadCoinflips(),
         loadChat()
       ]);
+
     } catch (error) {
       console.error(
         "Verification:",
@@ -942,32 +882,40 @@
     } finally {
       if (button) {
         button.disabled = false;
+
         button.textContent =
           "Verify Roblox Bio";
       }
     }
   }
 
-
   /* =====================================================
      ACCOUNT
-  ===================================================== */
+     ===================================================== */
 
   async function loadAccount() {
     /*
-     * Restore token one more time in case the
-     * page was refreshed.
-     */
-    if (!state.token) {
+      IMPORTANT:
+      Every page refresh recreates the JavaScript state.
+
+      Therefore read the token from localStorage AGAIN.
+    */
+    const savedToken =
+      localStorage.getItem(
+        "admflip_token"
+      );
+
+    if (savedToken) {
       state.token =
-        getSavedToken();
+        savedToken;
     }
 
     /*
-     * If there is no token, don't call /account.
-     */
+      No token means no logged-in account.
+    */
     if (!state.token) {
       state.user = null;
+
       state.inventory = [];
 
       updateAccountUI();
@@ -977,20 +925,19 @@
 
     try {
       const data =
-        await api("/account");
+        await api(
+          "/account"
+        );
 
       const account =
         data?.user;
 
+      /*
+        Backend did not return a user.
+      */
       if (!account) {
-        /*
-         * IMPORTANT:
-         *
-         * Do NOT immediately delete the token here.
-         * Some backends can temporarily return an
-         * empty account response.
-         */
         state.user = null;
+
         state.inventory = [];
 
         updateAccountUI();
@@ -998,6 +945,9 @@
         return null;
       }
 
+      /*
+        RESTORE THE USER AFTER REFRESH.
+      */
       state.user =
         account;
 
@@ -1008,63 +958,85 @@
           ? account.inventory
           : [];
 
+      /*
+        Keep the token stored.
+      */
+      localStorage.setItem(
+        "admflip_token",
+        state.token
+      );
+
       updateAccountUI();
 
+      renderProfile();
+
       return state.user;
+
     } catch (error) {
       console.error(
-        "Account restore:",
+        "Load account:",
         error
       );
 
       /*
-       * Only clear the token when the backend
-       * explicitly says the authentication token
-       * is invalid/expired.
-       */
-      if (
-        error.status === 401 ||
-        error.status === 403
-      ) {
-        /*
-         * Keep the token for now if this is a
-         * temporary backend/CORS issue.
-         *
-         * If your backend specifically returns
-         * "invalid token", clear it.
-         */
-        const message =
-          String(
-            error.message || ""
-          ).toLowerCase();
+        IMPORTANT:
+        Do NOT delete the token because of a
+        network/backend error.
 
-        if (
-          message.includes(
-            "invalid token"
-          ) ||
-          message.includes(
-            "token expired"
-          ) ||
-          message.includes(
-            "jwt expired"
-          ) ||
-          message.includes(
-            "unauthorized"
-          )
-        ) {
-          clearToken();
-        }
+        Only delete it for a genuine authentication
+        failure.
+      */
+      const status =
+        Number(error?.status || 0);
+
+      const message =
+        String(
+          error?.message || ""
+        ).toLowerCase();
+
+      const authError =
+        status === 401 ||
+        message.includes(
+          "unauthorized"
+        ) ||
+        message.includes(
+          "invalid token"
+        ) ||
+        message.includes(
+          "expired token"
+        ) ||
+        message.includes(
+          "token expired"
+        ) ||
+        message.includes(
+          "not authenticated"
+        ) ||
+        message.includes(
+          "authentication required"
+        ) ||
+        message.includes(
+          "invalid authentication"
+        );
+
+      if (authError) {
+        state.user = null;
+
+        state.inventory = [];
+
+        state.token = null;
+
+        localStorage.removeItem(
+          "admflip_token"
+        );
+
+        updateAccountUI();
+
+        renderProfile();
       }
-
-      state.user = null;
-      state.inventory = [];
-
-      updateAccountUI();
 
       return null;
     }
   }
-
 
   function updateAccountUI() {
     const login =
@@ -1073,42 +1045,57 @@
     const account =
       el("accountBox");
 
-    if (!state.user) {
-      show(login);
-      hide(account);
+    if (!login || !account) {
+      return;
+    }
+
+    /*
+      LOGGED IN
+      ----------------
+      Hide Roblox Login
+      Show Profile + Logout
+    */
+    if (state.user) {
+      hide(login);
+
+      show(account);
+
+      const username =
+        el("accountUsername");
+
+      if (username) {
+        username.textContent =
+          state.user.username ||
+          state.user.name ||
+          "User";
+      }
+
+      const avatar =
+        el("accountAvatar");
+
+      if (avatar) {
+        avatar.src =
+          state.user.avatar ||
+          state.user.avatarUrl ||
+          robloxAvatar(
+            state.user.id ||
+            state.user.userId
+          ) ||
+          "/logo.png";
+      }
 
       return;
     }
 
-    hide(login);
-    show(account);
+    /*
+      LOGGED OUT
+    */
+    show(login);
 
-    const username =
-      el("accountUsername");
-
-    if (username) {
-      username.textContent =
-        state.user.username ||
-        "User";
-    }
-
-    const avatar =
-      el("accountAvatar");
-
-    if (avatar) {
-      avatar.src =
-        state.user.avatar ||
-        robloxAvatar(
-          state.user.id
-        );
-    }
+    hide(account);
   }
 
-
   async function logout() {
-    /*
-     * Server logout is optional.
-     */
     try {
       await api(
         "/logout",
@@ -1118,24 +1105,34 @@
       );
     } catch (error) {
       console.warn(
-        "Logout endpoint:",
+        "Logout backend:",
         error
       );
     }
 
+    /*
+      Clear EVERYTHING locally.
+    */
     state.user = null;
+
     state.inventory = [];
+
     state.verification = null;
 
-    clearToken();
+    state.token = null;
+
+    localStorage.removeItem(
+      "admflip_token"
+    );
 
     updateAccountUI();
 
     renderProfile();
 
-    toast("Signed out.");
+    toast(
+      "Signed out."
+    );
   }
-
 
   /* =====================================================
      VALUES
@@ -1154,7 +1151,9 @@
 
     try {
       const data =
-        await api("/pets");
+        await api(
+          "/pets"
+        );
 
       const pets =
         Array.isArray(data)
@@ -1167,6 +1166,7 @@
       renderValues(
         pets
       );
+
     } catch (error) {
       console.error(
         "Values:",
@@ -1181,8 +1181,9 @@
     }
   }
 
-
-  function renderValues(pets) {
+  function renderValues(
+    pets
+  ) {
     const grid =
       el("valuesGrid");
 
@@ -1205,8 +1206,9 @@
         .join("");
   }
 
-
-  function renderPetCard(pet) {
+  function renderPetCard(
+    pet
+  ) {
     const name =
       petName(pet);
 
@@ -1250,7 +1252,6 @@
     `;
   }
 
-
   function setupValueSearch() {
     const input =
       el("valueSearch");
@@ -1288,7 +1289,6 @@
       }
     );
   }
-
 
   /* =====================================================
      COINFLIPS
@@ -1347,6 +1347,7 @@
         totalNode.textContent =
           formatValue(total);
       }
+
     } catch (error) {
       console.error(
         "Coinflips:",
@@ -1361,8 +1362,9 @@
     }
   }
 
-
-  function renderCoinflips(flips) {
+  function renderCoinflips(
+    flips
+  ) {
     const container =
       el("coinflips");
 
@@ -1435,7 +1437,6 @@
 
                 </div>
 
-
                 <div class="coinflip-pet">
 
                   <img
@@ -1458,7 +1459,6 @@
 
                 </div>
 
-
                 <div class="coinflip-side">
                   ${escapeHTML(
                     flip.side ||
@@ -1472,7 +1472,6 @@
         )
         .join("");
   }
-
 
   /* =====================================================
      CREATE COINFLIP
@@ -1518,13 +1517,11 @@
     loadInventory();
   }
 
-
   function closeCreateCoinflip() {
     hide(
       el("createModal")
     );
   }
-
 
   async function loadInventory() {
     const grid =
@@ -1538,6 +1535,9 @@
       `<div class="loading">Loading inventory...</div>`;
 
     try {
+      /*
+        Make sure the account is still restored.
+      */
       const account =
         await loadAccount();
 
@@ -1672,6 +1672,7 @@
             );
           }
         );
+
     } catch (error) {
       console.error(
         "Inventory:",
@@ -1685,7 +1686,6 @@
       );
     }
   }
-
 
   function setupSideButtons() {
     $$(".side-btn").forEach(
@@ -1713,10 +1713,10 @@
     );
   }
 
-
   async function postCoinflip() {
     if (!state.user) {
       openLogin();
+
       return;
     }
 
@@ -1763,6 +1763,7 @@
         loadCoinflips(),
         loadAccount()
       ]);
+
     } catch (error) {
       console.error(
         "Create coinflip:",
@@ -1775,7 +1776,6 @@
       );
     }
   }
-
 
   /* =====================================================
      CHAT
@@ -1805,9 +1805,11 @@
           online?.online ||
           0
         );
+
       } catch {
         setOnlineCount(0);
       }
+
     } catch (error) {
       console.error(
         "Chat:",
@@ -1818,8 +1820,9 @@
     }
   }
 
-
-  function renderChat(messages) {
+  function renderChat(
+    messages
+  ) {
     const container =
       el(
         "panelChatMessages"
@@ -1923,8 +1926,9 @@
       container.scrollHeight;
   }
 
-
-  function setOnlineCount(count) {
+  function setOnlineCount(
+    count
+  ) {
     const node =
       el(
         "panelOnlineCount"
@@ -1945,7 +1949,6 @@
         formatNumber(count);
     }
   }
-
 
   async function sendChatMessage() {
     const input =
@@ -1989,17 +1992,19 @@
       input.value = "";
 
       await loadChat();
+
     } catch (error) {
       toast(
         error.message ||
         "Could not send message."
       );
+
     } finally {
       input.disabled = false;
+
       input.focus();
     }
   }
-
 
   function openChat() {
     state.chatOpen =
@@ -2018,7 +2023,6 @@
     loadChat();
   }
 
-
   function closeChat() {
     state.chatOpen =
       false;
@@ -2034,7 +2038,6 @@
     );
   }
 
-
   function toggleChat() {
     if (state.chatOpen) {
       closeChat();
@@ -2042,7 +2045,6 @@
       openChat();
     }
   }
-
 
   /* =====================================================
      PROFILE
@@ -2078,12 +2080,15 @@
 
     const avatar =
       state.user.avatar ||
+      state.user.avatarUrl ||
       robloxAvatar(
-        state.user.id
+        state.user.id ||
+        state.user.userId
       );
 
     const inventory =
       state.user.inventory ||
+      state.inventory ||
       [];
 
     container.innerHTML = `
@@ -2102,6 +2107,7 @@
             <strong>
               ${escapeHTML(
                 state.user.username ||
+                state.user.name ||
                 "User"
               )}
             </strong>
@@ -2113,7 +2119,6 @@
           </div>
 
         </div>
-
 
         <div class="profile-stats">
 
@@ -2132,7 +2137,6 @@
 
           </div>
 
-
           <div class="profile-stat">
 
             <span>
@@ -2147,7 +2151,6 @@
             </strong>
 
           </div>
-
 
           <div class="profile-stat">
 
@@ -2166,7 +2169,6 @@
 
         </div>
 
-
         <div class="eyebrow">
           INVENTORY
         </div>
@@ -2174,7 +2176,6 @@
         <h2>
           Your Pets
         </h2>
-
 
         <div class="values-grid">
 
@@ -2197,7 +2198,6 @@
       </div>
     `;
   }
-
 
   /* =====================================================
      EVENTS
@@ -2235,10 +2235,11 @@
     el("profileBtn")
       ?.addEventListener(
         "click",
-        () =>
+        () => {
           openPage(
             "profile"
-          )
+          );
+        }
       );
 
     el("logoutBtn")
@@ -2282,13 +2283,12 @@
       );
 
     setupSideButtons();
+
     setupValueSearch();
 
-
     /*
-     * Close modal when clicking outside
-     * the modal box.
-     */
+      Clicking outside a modal closes it.
+    */
     document.addEventListener(
       "click",
       (event) => {
@@ -2307,7 +2307,9 @@
       }
     );
 
-
+    /*
+      ESC closes open panels/modals.
+    */
     document.addEventListener(
       "keydown",
       (event) => {
@@ -2319,12 +2321,13 @@
         }
 
         closeLogin();
+
         closeCreateCoinflip();
+
         closeChat();
       }
     );
   }
-
 
   /* =====================================================
      LOADING SCREEN
@@ -2338,18 +2341,22 @@
       return;
     }
 
-    setTimeout(() => {
-      screen.classList.add(
-        "is-hidden"
-      );
+    setTimeout(
+      () => {
+        screen.classList.add(
+          "is-hidden"
+        );
 
-      setTimeout(
-        () => screen.remove(),
-        260
-      );
-    }, 700);
+        setTimeout(
+          () => {
+            screen.remove();
+          },
+          260
+        );
+      },
+      700
+    );
   }
-
 
   /* =====================================================
      INIT
@@ -2358,26 +2365,24 @@
   async function init() {
     finishLoadingScreen();
 
-    /*
-     * VERY IMPORTANT:
-     *
-     * Restore the token BEFORE doing
-     * anything that depends on login.
-     */
-    state.token =
-      getSavedToken();
-
     setupNavigation();
+
     setupEvents();
 
     /*
-     * First restore the account.
-     */
+      VERY IMPORTANT:
+
+      Restore the Roblox account BEFORE the rest
+      of the website finishes loading.
+
+      This is what makes the Profile / Logout UI
+      survive a page refresh.
+    */
     await loadAccount();
 
     /*
-     * Then load the rest of the site.
-     */
+      Load the rest of the website.
+    */
     await Promise.allSettled([
       loadValues(),
       loadCoinflips(),
@@ -2396,27 +2401,33 @@
         : "coinflip"
     );
 
-
     /*
-     * Refresh public data every 5 seconds.
-     *
-     * We do NOT re-login or re-create
-     * the authentication token here.
-     */
-    setInterval(() => {
-      if (
-        state.page ===
-        "coinflip"
-      ) {
-        loadCoinflips();
-      }
+      Refresh live data.
 
-      if (state.chatOpen) {
-        loadChat();
-      }
-    }, 5000);
+      This DOES NOT touch the login state.
+    */
+    setInterval(
+      () => {
+        if (
+          state.page ===
+          "coinflip"
+        ) {
+          loadCoinflips();
+        }
+
+        if (
+          state.chatOpen
+        ) {
+          loadChat();
+        }
+      },
+      5000
+    );
   }
 
+  /* =====================================================
+     START
+  ===================================================== */
 
   if (
     document.readyState ===
