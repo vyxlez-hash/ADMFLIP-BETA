@@ -1,8 +1,12 @@
 (() => {
   "use strict";
 
+  /* =====================================================
+     ADMFLIP CONFIG
+  ===================================================== */
+
   const DEFAULT_BACKEND =
-    "https://admflip-beta-production-b837.up.railway.app";
+    "https://admflip-beta.onrender.com";
 
   const BACKEND = (
     new URLSearchParams(location.search).get("backend") ||
@@ -15,21 +19,57 @@
     backend: BACKEND
   };
 
+  console.log(
+    "[ADMFLIP] Backend:",
+    BACKEND
+  );
+
+  /* =====================================================
+     STATE
+  ===================================================== */
+
   const state = {
     page: "coinflip",
+
     user: null,
+
     verification: null,
+
     pets: [],
+
     inventory: [],
+
     selectedPet: null,
+
     selectedSide: null,
+
     coinflips: [],
+
     chatOpen: false,
-    token: localStorage.getItem("admflip_token") || null
+
+    onlineCount: 0,
+
+    token:
+      localStorage.getItem(
+        "admflip_token"
+      ) || null
   };
 
   /* =====================================================
-     HELPERS
+     CONSTANTS
+  ===================================================== */
+
+  const LOGO =
+    "/roblox.png";
+
+  const BACKGROUND =
+    "/blurry.png";
+
+  const TOKEN_KEY =
+    "admflip_token";
+
+  /* =====================================================
+     DOM HELPERS
   ===================================================== */
 
   const $ = (selector) =>
@@ -53,6 +93,10 @@
     }
   }
 
+  /* =====================================================
+     SAFE HTML
+  ===================================================== */
+
   function escapeHTML(value) {
     return String(value ?? "")
       .replace(/&/g, "&amp;")
@@ -61,6 +105,10 @@
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
   }
+
+  /* =====================================================
+     NUMBER FORMAT
+  ===================================================== */
 
   function formatNumber(value) {
     const n = Number(value);
@@ -105,6 +153,10 @@
 
     return n.toLocaleString();
   }
+
+  /* =====================================================
+     PET HELPERS
+  ===================================================== */
 
   function petName(pet) {
     if (typeof pet === "string") {
@@ -166,7 +218,7 @@
 
   function robloxAvatar(id) {
     if (!id) {
-      return "/logo.png";
+      return LOGO;
     }
 
     return (
@@ -177,65 +229,326 @@
   }
 
   /* =====================================================
+     LOGO / IMAGE FIX
+  ===================================================== */
+
+  function fixLogoImages(root = document) {
+    const images =
+      root.querySelectorAll
+        ? root.querySelectorAll("img")
+        : [];
+
+    images.forEach((image) => {
+      const src =
+        image.getAttribute("src") || "";
+
+      if (
+        src.includes("logo.png") ||
+        src.includes("admflip-logo") ||
+        src === "" ||
+        src === "#"
+      ) {
+        image.src = LOGO;
+      }
+
+      image.addEventListener(
+        "error",
+        () => {
+          if (
+            image.dataset.admflipFallback
+          ) {
+            return;
+          }
+
+          image.dataset.admflipFallback =
+            "1";
+
+          image.src = LOGO;
+        },
+        {
+          once: true
+        }
+      );
+    });
+  }
+
+  function forceMainLogo() {
+    const possibleSelectors = [
+      ".logo img",
+      ".site-logo img",
+      ".brand img",
+      "#brand img",
+      "header img",
+      ".header-logo img",
+      ".navbar-brand img"
+    ];
+
+    let found = false;
+
+    possibleSelectors.forEach(
+      (selector) => {
+        $$(selector).forEach(
+          (image) => {
+            image.src = LOGO;
+            image.removeAttribute(
+              "srcset"
+            );
+
+            image.style.objectFit =
+              "contain";
+
+            image.style.filter =
+              "none";
+
+            image.dataset.admflipLogo =
+              "true";
+
+            found = true;
+          }
+        );
+      }
+    );
+
+    if (!found) {
+      $$("img").forEach(
+        (image) => {
+          const alt =
+            (
+              image.alt || ""
+            ).toLowerCase();
+
+          const src =
+            (
+              image.src || ""
+            ).toLowerCase();
+
+          if (
+            alt.includes("logo") ||
+            src.includes("logo")
+          ) {
+            image.src = LOGO;
+            image.removeAttribute(
+              "srcset"
+            );
+            image.style.objectFit =
+              "contain";
+            image.style.filter =
+              "none";
+          }
+        }
+      );
+    }
+
+    fixLogoImages();
+  }
+
+  /* =====================================================
+     BACKGROUND FIX
+  ===================================================== */
+
+  function installBackground() {
+    if (
+      document.getElementById(
+        "admflip-background-fix"
+      )
+    ) {
+      return;
+    }
+
+    const style =
+      document.createElement(
+        "style"
+      );
+
+    style.id =
+      "admflip-background-fix";
+
+    style.textContent = `
+      html,
+      body {
+        background: #050507 !important;
+        min-height: 100%;
+      }
+
+      body {
+        position: relative;
+        isolation: isolate;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: -35px;
+        z-index: -3;
+        pointer-events: none;
+
+        background-image:
+          url("/blurry.png");
+
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+
+        filter: blur(18px);
+        transform: scale(1.06);
+
+        opacity: 0.72;
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -2;
+        pointer-events: none;
+
+        background:
+          linear-gradient(
+            180deg,
+            rgba(0, 0, 0, 0.58),
+            rgba(0, 0, 0, 0.72)
+          );
+      }
+
+      /*
+       * Keep UI above the background.
+       * Nothing inside the site gets the blur.
+       */
+
+      header,
+      nav,
+      main,
+      section,
+      article,
+      .modal,
+      .modal-content,
+      .panel,
+      .card,
+      button,
+      input,
+      textarea,
+      select,
+      .chat,
+      .chat-panel,
+      .sidebar,
+      .topbar,
+      .navbar {
+        position: relative;
+        z-index: 1;
+      }
+
+      img {
+        position: relative;
+        z-index: 1;
+      }
+
+      #admflip-bg-test {
+        display: none;
+      }
+    `;
+
+    document.head.appendChild(
+      style
+    );
+  }
+
+  /* =====================================================
      TOAST
   ===================================================== */
 
   function toast(message) {
-    const box = el("toast");
+    const box =
+      el("toast");
 
     if (!box) {
+      console.warn(
+        "[ADMFLIP TOAST]",
+        message
+      );
+
       return;
     }
 
-    box.textContent = message;
-    box.classList.add("show");
+    box.textContent =
+      message;
 
-    clearTimeout(box._timeout);
+    box.classList.add(
+      "show"
+    );
 
-    box._timeout = setTimeout(() => {
-      box.classList.remove("show");
-    }, 2800);
+    clearTimeout(
+      box._timeout
+    );
+
+    box._timeout =
+      setTimeout(() => {
+        box.classList.remove(
+          "show"
+        );
+      }, 2800);
   }
 
   /* =====================================================
      API
   ===================================================== */
 
-  async function api(path, options = {}) {
+  async function api(
+    path,
+    options = {}
+  ) {
     const cleanPath =
-      String(path || "").startsWith("/")
+      String(path || "").startsWith(
+        "/"
+      )
         ? String(path)
-        : "/" + String(path);
+        : "/" +
+          String(path);
+
+    const headers = {
+      Accept:
+        "application/json"
+    };
+
+    if (options.body) {
+      headers[
+        "Content-Type"
+      ] =
+        "application/json";
+    }
+
+    if (state.token) {
+      headers.Authorization =
+        "Bearer " +
+        state.token;
+    }
+
+    Object.assign(
+      headers,
+      options.headers || {}
+    );
 
     let response;
 
     try {
-      response = await fetch(
-        BACKEND + cleanPath,
-        {
-          credentials: "include",
-          cache: "no-store",
-          ...options,
-          headers: {
-            ...(options.body
-              ? {
-                  "Content-Type":
-                    "application/json"
-                }
-              : {}),
-            ...(state.token
-              ? {
-                  Authorization:
-                    "Bearer " + state.token
-                }
-              : {}),
-            ...(options.headers || {})
+      response =
+        await fetch(
+          BACKEND +
+            cleanPath,
+          {
+            credentials:
+              "include",
+
+            cache:
+              "no-store",
+
+            ...options,
+
+            headers
           }
-        }
-      );
+        );
     } catch (error) {
       console.error(
-        "ADMFLIP backend:",
+        "[ADMFLIP API NETWORK]",
         error
       );
 
@@ -250,9 +563,10 @@
     let data = null;
 
     try {
-      data = text
-        ? JSON.parse(text)
-        : null;
+      data =
+        text
+          ? JSON.parse(text)
+          : null;
     } catch {
       data = text;
     }
@@ -260,14 +574,26 @@
     if (!response.ok) {
       const message =
         data &&
-        typeof data === "object"
-          ? data.message ||
-            data.error
+        typeof data ===
+          "object"
+          ? (
+              data.message ||
+              data.error ||
+              data.details
+            )
           : null;
+
+      /*
+       * Do NOT immediately delete the token
+       * on every failed request.
+       *
+       * A temporary backend error must not
+       * log the user out.
+       */
 
       throw new Error(
         message ||
-          `Request failed (${response.status})`
+        `Request failed (${response.status})`
       );
     }
 
@@ -275,23 +601,83 @@
   }
 
   /* =====================================================
+     TOKEN STORAGE
+  ===================================================== */
+
+  function saveToken(token) {
+    if (!token) {
+      return;
+    }
+
+    state.token =
+      String(token);
+
+    localStorage.setItem(
+      TOKEN_KEY,
+      state.token
+    );
+  }
+
+  function clearToken() {
+    state.token =
+      null;
+
+    localStorage.removeItem(
+      TOKEN_KEY
+    );
+  }
+
+  function restoreToken() {
+    const token =
+      localStorage.getItem(
+        TOKEN_KEY
+      );
+
+    if (
+      token &&
+      token.trim()
+    ) {
+      state.token =
+        token.trim();
+
+      return true;
+    }
+
+    state.token =
+      null;
+
+    return false;
+  }
+
+  /* =====================================================
      NAVIGATION
   ===================================================== */
 
   const pages = {
-    coinflip: "coinflipPage",
-    values: "valuesPage",
-    profile: "profilePage"
+    coinflip:
+      "coinflipPage",
+
+    values:
+      "valuesPage",
+
+    profile:
+      "profilePage"
   };
 
-  function openPage(page) {
+  function openPage(
+    page
+  ) {
     if (!pages[page]) {
-      page = "coinflip";
+      page =
+        "coinflip";
     }
 
-    state.page = page;
+    state.page =
+      page;
 
-    Object.entries(pages).forEach(
+    Object.entries(
+      pages
+    ).forEach(
       ([name, id]) => {
         const pageElement =
           el(id);
@@ -311,28 +697,40 @@
       (button) => {
         button.classList.toggle(
           "active",
-          button.dataset.page === page
+          button.dataset.page ===
+            page
         );
       }
     );
 
-    if (page === "values") {
+    if (
+      page ===
+      "values"
+    ) {
       loadValues();
     }
 
-    if (page === "coinflip") {
+    if (
+      page ===
+      "coinflip"
+    ) {
       loadCoinflips();
     }
 
-    if (page === "profile") {
+    if (
+      page ===
+      "profile"
+    ) {
       renderProfile();
     }
 
-    history.replaceState(
-      null,
-      "",
-      "#" + page
-    );
+    try {
+      history.replaceState(
+        null,
+        "",
+        "#" + page
+      );
+    } catch {}
   }
 
   function setupNavigation() {
@@ -357,17 +755,22 @@
       }
     );
 
-    el("brand")?.addEventListener(
+    el(
+      "brand"
+    )?.addEventListener(
       "click",
       (event) => {
         event.preventDefault();
-        openPage("coinflip");
+
+        openPage(
+          "coinflip"
+        );
       }
     );
   }
 
   /* =====================================================
-     ERRORS
+     ERROR RENDER
   ===================================================== */
 
   function renderError(
@@ -401,7 +804,7 @@
   }
 
   /* =====================================================
-     LOGIN
+     LOGIN MODAL
   ===================================================== */
 
   function openLogin() {
@@ -421,7 +824,8 @@
       input.value = "";
 
       setTimeout(
-        () => input.focus(),
+        () =>
+          input.focus(),
         50
       );
     }
@@ -430,21 +834,30 @@
       el("loginProfile")
     );
 
-    hide(el("phrase"));
-    hide(el("verify"));
+    hide(
+      el("phrase")
+    );
+
+    hide(
+      el("verify")
+    );
 
     const message =
       el("loginMessage");
 
     if (message) {
-      message.textContent = "";
+      message.textContent =
+        "";
     }
 
-    state.verification = null;
+    state.verification =
+      null;
   }
 
   function closeLogin() {
-    hide(el("loginModal"));
+    hide(
+      el("loginModal")
+    );
   }
 
   function makeVerificationPhrase() {
@@ -529,15 +942,17 @@
       const data =
         await api(
           "/user/" +
-          encodeURIComponent(
-            username
-          )
+            encodeURIComponent(
+              username
+            )
         );
 
       const robloxUser =
         data?.user;
 
-      if (!robloxUser?.id) {
+      if (
+        !robloxUser?.id
+      ) {
         throw new Error(
           "Roblox user was not found."
         );
@@ -550,7 +965,9 @@
         username:
           robloxUser.username ||
           username,
+
         robloxUser,
+
         phrase
       };
 
@@ -562,7 +979,9 @@
         phrase
       );
 
-      show(el("verify"));
+      show(
+        el("verify")
+      );
 
       if (message) {
         message.textContent =
@@ -607,20 +1026,31 @@
     box.innerHTML = `
       <div class="login-profile-inner">
         <img
-          src="${escapeHTML(avatar)}"
-          alt="${escapeHTML(username)}"
-          onerror="this.src='/logo.png'"
-        >
-        <div>
-          <strong>${escapeHTML(
+          src="${escapeHTML(
+            avatar
+          )}"
+          alt="${escapeHTML(
             username
-          )}</strong>
-          <span>Roblox account found</span>
+          )}"
+        >
+
+        <div>
+          <strong>
+            ${escapeHTML(
+              username
+            )}
+          </strong>
+
+          <span>
+            Roblox account found
+          </span>
         </div>
       </div>
     `;
 
     show(box);
+
+    fixLogoImages(box);
   }
 
   function renderPhrase(
@@ -639,7 +1069,9 @@
       </div>
 
       <strong>
-        ${escapeHTML(phrase)}
+        ${escapeHTML(
+          phrase
+        )}
       </strong>
 
       <p>
@@ -672,7 +1104,9 @@
     }
 
     if (button) {
-      button.disabled = true;
+      button.disabled =
+        true;
+
       button.textContent =
         "Checking...";
     }
@@ -684,35 +1118,44 @@
 
     try {
       const result =
-        await api("/check", {
-          method: "POST",
-          body: JSON.stringify({
-            username:
-              state.verification
-                .username,
-            phrase:
-              state.verification
-                .phrase
-          })
-        });
+        await api(
+          "/check",
+          {
+            method:
+              "POST",
+
+            body:
+              JSON.stringify({
+                username:
+                  state.verification
+                    .username,
+
+                phrase:
+                  state.verification
+                    .phrase
+              })
+          }
+        );
 
       if (
         !result ||
-        result.success !== true
+        result.success !==
+          true
       ) {
         throw new Error(
           result?.message ||
-            "Verification failed."
+          "Verification failed."
         );
       }
 
       state.user =
-        result.user || null;
+        result.user ||
+        null;
 
-      if (result.token) {
-        state.token = result.token;
-        localStorage.setItem(
-          "admflip_token",
+      if (
+        result.token
+      ) {
+        saveToken(
           result.token
         );
       }
@@ -724,15 +1167,22 @@
       closeLogin();
 
       toast(
-        `Verified as ${state.user?.username || "User"}`
+        `Verified as ${
+          state.user?.username ||
+          "User"
+        }`
       );
 
-      openPage("coinflip");
+      openPage(
+        "coinflip"
+      );
 
-      await Promise.allSettled([
-        loadCoinflips(),
-        loadChat()
-      ]);
+      await Promise.allSettled(
+        [
+          loadCoinflips(),
+          loadChat()
+        ]
+      );
     } catch (error) {
       console.error(
         "Verification:",
@@ -746,7 +1196,9 @@
       }
     } finally {
       if (button) {
-        button.disabled = false;
+        button.disabled =
+          false;
+
         button.textContent =
           "Verify Roblox Bio";
       }
@@ -758,16 +1210,43 @@
   ===================================================== */
 
   async function loadAccount() {
+    /*
+     * Always restore the token from localStorage
+     * before making the account request.
+     */
+
+    restoreToken();
+
+    if (!state.token) {
+      state.user =
+        null;
+
+      updateAccountUI();
+
+      return null;
+    }
+
     try {
       const data =
-        await api("/account");
+        await api(
+          "/account"
+        );
 
       const account =
         data?.user;
 
       if (!account) {
-        state.user = null;
+        /*
+         * Do not immediately delete the token.
+         * The backend may have returned an unusual
+         * response without actually invalidating it.
+         */
+
+        state.user =
+          null;
+
         updateAccountUI();
+
         return null;
       }
 
@@ -785,20 +1264,48 @@
 
       return state.user;
     } catch (error) {
-      if (
-        error.message &&
-        (
-          error.message.includes(
-            "verify"
-          ) ||
-          error.message.includes(
-            "authenticated"
-          )
-        )
-      ) {
-        state.user = null;
-        updateAccountUI();
+      console.warn(
+        "[ADMFLIP] Account restore failed:",
+        error.message
+      );
+
+      /*
+       * Only clear the session when the backend
+       * explicitly tells us the authentication
+       * is invalid.
+       */
+
+      const message =
+        String(
+          error.message ||
+            ""
+        ).toLowerCase();
+
+      const authError =
+        message.includes(
+          "unauthorized"
+        ) ||
+        message.includes(
+          "invalid token"
+        ) ||
+        message.includes(
+          "token expired"
+        ) ||
+        message.includes(
+          "not authenticated"
+        ) ||
+        message.includes(
+          "authentication required"
+        );
+
+      if (authError) {
+        clearToken();
       }
+
+      state.user =
+        null;
+
+      updateAccountUI();
 
       return null;
     }
@@ -838,29 +1345,46 @@
         robloxAvatar(
           state.user.id
         );
+
+      avatar.onerror =
+        () => {
+          avatar.src =
+            LOGO;
+        };
     }
   }
 
   async function logout() {
     try {
-      await api(
-        "/logout",
-        {
-          method: "POST"
-        }
-      );
+      if (state.token) {
+        await api(
+          "/logout",
+          {
+            method:
+              "POST"
+          }
+        );
+      }
     } catch {}
 
-    state.user = null;
-    state.inventory = [];
-    state.verification = null;
-    state.token = null;
-    localStorage.removeItem("admflip_token");
+    state.user =
+      null;
+
+    state.inventory =
+      [];
+
+    state.verification =
+      null;
+
+    clearToken();
 
     updateAccountUI();
+
     renderProfile();
 
-    toast("Signed out.");
+    toast(
+      "Signed out."
+    );
   }
 
   /* =====================================================
@@ -880,14 +1404,18 @@
 
     try {
       const data =
-        await api("/pets");
+        await api(
+          "/pets"
+        );
 
       const pets =
         Array.isArray(data)
           ? data
-          : data?.pets || [];
+          : data?.pets ||
+            [];
 
-      state.pets = pets;
+      state.pets =
+        pets;
 
       renderValues(
         pets
@@ -929,6 +1457,8 @@
           renderPetCard
         )
         .join("");
+
+    fixLogoImages(grid);
   }
 
   function renderPetCard(
@@ -946,24 +1476,34 @@
     return `
       <article
         class="pet-card"
-        data-pet-name="${escapeHTML(name)}"
+        data-pet-name="${escapeHTML(
+          name
+        )}"
       >
         <img
           class="pet-image"
-          src="${escapeHTML(image)}"
-          alt="${escapeHTML(name)}"
+          src="${escapeHTML(
+            image
+          )}"
+          alt="${escapeHTML(
+            name
+          )}"
           loading="lazy"
-          onerror="if(!this.dataset.failed){this.dataset.failed='1';this.src='/logo.png';}"
         >
 
         <div class="pet-name">
-          ${escapeHTML(name)}
+          ${escapeHTML(
+            name
+          )}
         </div>
 
         <div class="pet-meta">
           <span>Value</span>
+
           <strong class="pet-value">
-            ${formatValue(value)}
+            ${formatValue(
+              value
+            )}
           </strong>
         </div>
       </article>
@@ -992,7 +1532,8 @@
               const name =
                 (
                   card.dataset
-                    .petName || ""
+                    .petName ||
+                  ""
                 ).toLowerCase();
 
               card.style.display =
@@ -1027,7 +1568,11 @@
         );
 
       const flips =
-        data?.coinflips || [];
+        Array.isArray(
+          data?.coinflips
+        )
+          ? data.coinflips
+          : [];
 
       state.coinflips =
         flips;
@@ -1048,7 +1593,10 @@
 
       const total =
         flips.reduce(
-          (sum, flip) =>
+          (
+            sum,
+            flip
+          ) =>
             sum +
             (
               Number(
@@ -1063,7 +1611,9 @@
 
       if (totalNode) {
         totalNode.textContent =
-          formatValue(total);
+          formatValue(
+            total
+          );
       }
     } catch (error) {
       console.error(
@@ -1106,7 +1656,10 @@
 
             const avatar =
               flip.avatar ||
-              "/logo.png";
+              robloxAvatar(
+                flip.robloxId ||
+                flip.userId
+              );
 
             const name =
               flip.petName ||
@@ -1130,10 +1683,12 @@
                 )}"
               >
                 <div class="coinflip-player">
+
                   <img
-                    src="${escapeHTML(avatar)}"
+                    src="${escapeHTML(
+                      avatar
+                    )}"
                     alt=""
-                    onerror="this.src='/logo.png'"
                   >
 
                   <div>
@@ -1147,24 +1702,32 @@
                       Coinflip
                     </small>
                   </div>
+
                 </div>
 
                 <div class="coinflip-pet">
+
                   <img
-                    src="${escapeHTML(image)}"
+                    src="${escapeHTML(
+                      image
+                    )}"
                     alt=""
-                    onerror="this.src='/logo.png'"
                   >
 
                   <div>
                     <strong>
-                      ${escapeHTML(name)}
+                      ${escapeHTML(
+                        name
+                      )}
                     </strong>
 
                     <small class="muted">
-                      ${formatValue(value)}
+                      ${formatValue(
+                        value
+                      )}
                     </small>
                   </div>
+
                 </div>
 
                 <div class="coinflip-side">
@@ -1173,11 +1736,16 @@
                     "heads"
                   )}
                 </div>
+
               </article>
             `;
           }
         )
         .join("");
+
+    fixLogoImages(
+      container
+    );
   }
 
   /* =====================================================
@@ -1268,7 +1836,10 @@
       grid.innerHTML =
         pets
           .map(
-            (pet, index) => `
+            (
+              pet,
+              index
+            ) => `
               <article
                 class="pet-card"
                 data-index="${index}"
@@ -1276,26 +1847,35 @@
                 <img
                   class="pet-image"
                   src="${escapeHTML(
-                    petImage(pet)
+                    petImage(
+                      pet
+                    )
                   )}"
                   alt="${escapeHTML(
-                    petName(pet)
+                    petName(
+                      pet
+                    )
                   )}"
-                  onerror="this.src='/logo.png'"
                 >
 
                 <div class="pet-name">
                   ${escapeHTML(
-                    petName(pet)
+                    petName(
+                      pet
+                    )
                   )}
                 </div>
 
                 <div class="pet-meta">
-                  <span>Value</span>
+                  <span>
+                    Value
+                  </span>
 
                   <strong class="pet-value">
                     ${formatValue(
-                      petValue(pet)
+                      petValue(
+                        pet
+                      )
                     )}
                   </strong>
                 </div>
@@ -1303,6 +1883,10 @@
             `
           )
           .join("");
+
+      fixLogoImages(
+        grid
+      );
 
       $$("#createInventory .pet-card")
         .forEach(
@@ -1331,7 +1915,9 @@
                   ];
 
                 show(
-                  el("sideArea")
+                  el(
+                    "sideArea"
+                  )
                 );
 
                 const preview =
@@ -1341,13 +1927,18 @@
 
                 if (preview) {
                   preview.innerHTML = `
-                    <strong>Selected:</strong>
+                    <strong>
+                      Selected:
+                    </strong>
+
                     ${escapeHTML(
                       petName(
                         state.selectedPet
                       )
                     )}
+
                     ·
+
                     ${formatValue(
                       petValue(
                         state.selectedPet
@@ -1355,7 +1946,9 @@
                     )}
                   `;
 
-                  show(preview);
+                  show(
+                    preview
+                  );
                 }
               }
             );
@@ -1427,14 +2020,20 @@
       await api(
         "/coinflips",
         {
-          method: "POST",
-          body: JSON.stringify({
-            itemId:
-              state.selectedPet.id ||
-              state.selectedPet.itemId,
-            side:
-              state.selectedSide
-          })
+          method:
+            "POST",
+
+          body:
+            JSON.stringify({
+              itemId:
+                state.selectedPet
+                  .id ||
+                state.selectedPet
+                  .itemId,
+
+              side:
+                state.selectedSide
+            })
         }
       );
 
@@ -1456,7 +2055,7 @@
 
       toast(
         error.message ||
-          "Could not create coinflip."
+        "Could not create coinflip."
       );
     }
   }
@@ -1473,11 +2072,43 @@
         );
 
       const messages =
-        data?.messages || [];
+        data?.messages ||
+        [];
 
       renderChat(
         messages
       );
+
+      /*
+       * Prefer the proper presence endpoint.
+       * Fall back to /chat/online if needed.
+       */
+
+      try {
+        const presence =
+          await api(
+            "/presence"
+          );
+
+        const online =
+          Number(
+            presence?.online ??
+            presence?.count ??
+            presence?.onlineUsers
+          );
+
+        if (
+          Number.isFinite(
+            online
+          )
+        ) {
+          setOnlineCount(
+            online
+          );
+
+          return;
+        }
+      } catch {}
 
       try {
         const online =
@@ -1486,11 +2117,16 @@
           );
 
         setOnlineCount(
-          online?.online ||
-          0
+          Number(
+            online?.online ||
+            online?.count ||
+            0
+          )
         );
       } catch {
-        setOnlineCount(0);
+        setOnlineCount(
+          0
+        );
       }
     } catch (error) {
       console.error(
@@ -1498,7 +2134,13 @@
         error
       );
 
-      renderChat([]);
+      renderChat(
+        []
+      );
+
+      setOnlineCount(
+        0
+      );
     }
   }
 
@@ -1531,7 +2173,10 @@
 
             const avatar =
               message.avatar ||
-              "/logo.png";
+              robloxAvatar(
+                message.robloxId ||
+                message.userId
+              );
 
             const text =
               message.message ||
@@ -1547,7 +2192,9 @@
             if (pinned) {
               return `
                 <div class="chat-message chat-announcement">
+
                   <div>
+
                     <div class="chat-announcement-pin">
                       📌 PINNED
                     </div>
@@ -1563,21 +2210,26 @@
                         text
                       )}
                     </div>
+
                   </div>
+
                 </div>
               `;
             }
 
             return `
               <div class="chat-message">
+
                 <img
                   class="chat-avatar"
-                  src="${escapeHTML(avatar)}"
+                  src="${escapeHTML(
+                    avatar
+                  )}"
                   alt=""
-                  onerror="this.src='/logo.png'"
                 >
 
                 <div class="chat-content">
+
                   <div class="chat-username">
                     ${escapeHTML(
                       username
@@ -1589,12 +2241,18 @@
                       text
                     )}
                   </div>
+
                 </div>
+
               </div>
             `;
           }
         )
         .join("");
+
+    fixLogoImages(
+      container
+    );
 
     container.scrollTop =
       container.scrollHeight;
@@ -1603,6 +2261,22 @@
   function setOnlineCount(
     count
   ) {
+    const safeCount =
+      Number(count);
+
+    const finalCount =
+      Number.isFinite(
+        safeCount
+      )
+        ? Math.max(
+            0,
+            safeCount
+          )
+        : 0;
+
+    state.onlineCount =
+      finalCount;
+
     const node =
       el(
         "panelOnlineCount"
@@ -1610,7 +2284,9 @@
 
     if (node) {
       node.textContent =
-        formatNumber(count);
+        formatNumber(
+          finalCount
+        );
     }
 
     const coinflipOnline =
@@ -1620,13 +2296,40 @@
 
     if (coinflipOnline) {
       coinflipOnline.textContent =
-        formatNumber(count);
+        formatNumber(
+          finalCount
+        );
     }
+
+    /*
+     * Support other common online counters
+     * if they exist in the current HTML.
+     */
+
+    [
+      "onlineCount",
+      "onlineUsers",
+      "chatOnlineCount"
+    ].forEach(
+      (id) => {
+        const node =
+          el(id);
+
+        if (node) {
+          node.textContent =
+            formatNumber(
+              finalCount
+            );
+        }
+      }
+    );
   }
 
   async function sendChatMessage() {
     const input =
-      el("panelChatInput");
+      el(
+        "panelChatInput"
+      );
 
     if (!input) {
       return;
@@ -1649,29 +2352,37 @@
       return;
     }
 
-    input.disabled = true;
+    input.disabled =
+      true;
 
     try {
       await api(
         "/chat/messages",
         {
-          method: "POST",
-          body: JSON.stringify({
-            message: text
-          })
+          method:
+            "POST",
+
+          body:
+            JSON.stringify({
+              message:
+                text
+            })
         }
       );
 
-      input.value = "";
+      input.value =
+        "";
 
       await loadChat();
     } catch (error) {
       toast(
         error.message ||
-          "Could not send message."
+        "Could not send message."
       );
     } finally {
-      input.disabled = false;
+      input.disabled =
+        false;
+
       input.focus();
     }
   }
@@ -1709,7 +2420,9 @@
   }
 
   function toggleChat() {
-    if (state.chatOpen) {
+    if (
+      state.chatOpen
+    ) {
       closeChat();
     } else {
       openChat();
@@ -1733,11 +2446,15 @@
     if (!state.user) {
       container.innerHTML = `
         <div class="panel">
-          <h2>Not signed in</h2>
+
+          <h2>
+            Not signed in
+          </h2>
 
           <p class="muted">
             Login with Roblox to view your profile.
           </p>
+
         </div>
       `;
 
@@ -1751,20 +2468,26 @@
       );
 
     const inventory =
-      state.user.inventory ||
-      [];
+      Array.isArray(
+        state.user.inventory
+      )
+        ? state.user.inventory
+        : [];
 
     container.innerHTML = `
       <div class="profile-card">
 
         <div class="profile-user">
+
           <img
-            src="${escapeHTML(avatar)}"
+            src="${escapeHTML(
+              avatar
+            )}"
             alt=""
-            onerror="this.src='/logo.png'"
           >
 
           <div>
+
             <strong>
               ${escapeHTML(
                 state.user.username ||
@@ -1775,39 +2498,56 @@
             <span>
               Roblox account verified
             </span>
+
           </div>
+
         </div>
 
         <div class="profile-stats">
 
           <div class="profile-stat">
-            <span>TOTAL WAGERED</span>
+
+            <span>
+              TOTAL WAGERED
+            </span>
+
             <strong>
               ${formatValue(
                 state.user.wagered ||
                 0
               )}
             </strong>
+
           </div>
 
           <div class="profile-stat">
-            <span>PROFIT</span>
+
+            <span>
+              PROFIT
+            </span>
+
             <strong>
               ${formatValue(
                 state.user.profit ||
                 0
               )}
             </strong>
+
           </div>
 
           <div class="profile-stat">
-            <span>GAMES PLAYED</span>
+
+            <span>
+              GAMES PLAYED
+            </span>
+
             <strong>
               ${formatNumber(
                 state.user.coinflips ||
                 0
               )}
             </strong>
+
           </div>
 
         </div>
@@ -1816,9 +2556,12 @@
           INVENTORY
         </div>
 
-        <h2>Your Pets</h2>
+        <h2>
+          Your Pets
+        </h2>
 
         <div class="values-grid">
+
           ${
             inventory.length
               ? inventory
@@ -1832,10 +2575,15 @@
                 </div>
               `
           }
+
         </div>
 
       </div>
     `;
+
+    fixLogoImages(
+      container
+    );
   }
 
   /* =====================================================
@@ -1860,6 +2608,7 @@
         "submit",
         (event) => {
           event.preventDefault();
+
           startVerification();
         }
       );
@@ -1914,11 +2663,13 @@
         "submit",
         (event) => {
           event.preventDefault();
+
           sendChatMessage();
         }
       );
 
     setupSideButtons();
+
     setupValueSearch();
 
     document.addEventListener(
@@ -1950,7 +2701,9 @@
         }
 
         closeLogin();
+
         closeCreateCoinflip();
+
         closeChat();
       }
     );
@@ -1961,32 +2714,195 @@
   ===================================================== */
 
   function finishLoadingScreen() {
-    const screen = el("loadingScreen");
+    const screen =
+      el(
+        "loadingScreen"
+      );
 
     if (!screen) {
       return;
     }
 
-    // Keep the branded loader visible for about 0.7–0.9s.
-    setTimeout(() => {
-      screen.classList.add("is-hidden");
-      setTimeout(() => screen.remove(), 260);
-    }, 700);
+    /*
+     * Short branded loading screen.
+     * About 700ms before the site opens.
+     */
+
+    setTimeout(
+      () => {
+        screen.classList.add(
+          "is-hidden"
+        );
+
+        setTimeout(
+          () => {
+            screen.remove();
+          },
+          260
+        );
+      },
+      700
+    );
   }
 
   /* =====================================================
-     INIT
+     SESSION HEARTBEAT
   ===================================================== */
 
+  async function heartbeat() {
+    if (!state.token) {
+      return;
+    }
+
+    try {
+      /*
+       * /account confirms the saved session
+       * is still usable.
+       */
+      const data =
+        await api(
+          "/account"
+        );
+
+      if (data?.user) {
+        state.user =
+          data.user;
+
+        state.inventory =
+          Array.isArray(
+            data.user.inventory
+          )
+            ? data.user.inventory
+            : [];
+
+        updateAccountUI();
+      }
+    } catch (error) {
+      const message =
+        String(
+          error.message ||
+            ""
+        ).toLowerCase();
+
+      const authError =
+        message.includes(
+          "unauthorized"
+        ) ||
+        message.includes(
+          "invalid token"
+        ) ||
+        message.includes(
+          "token expired"
+        ) ||
+        message.includes(
+          "not authenticated"
+        );
+
+      if (authError) {
+        clearToken();
+
+        state.user =
+          null;
+
+        updateAccountUI();
+      }
+    }
+  }
+
+  /* =====================================================
+     AUTO IMAGE OBSERVER
+  ===================================================== */
+
+  function setupImageObserver() {
+    if (
+      !window.MutationObserver
+    ) {
+      return;
+    }
+
+    const observer =
+      new MutationObserver(
+        (mutations) => {
+          mutations.forEach(
+            (mutation) => {
+              mutation.addedNodes.forEach(
+                (node) => {
+                  if (
+                    node.nodeType !==
+                    1
+                  ) {
+                    return;
+                  }
+
+                  if (
+                    node.tagName ===
+                    "IMG"
+                  ) {
+                    fixLogoImages(
+                      node.parentElement ||
+                        document
+                    );
+                  } else {
+                    fixLogoImages(
+                      node
+                    );
+                  }
+                }
+              );
+            }
+          );
+        }
+      );
+
+    observer.observe(
+      document.body,
+      {
+        childList:
+          true,
+
+        subtree:
+          true
+      }
+    );
+  }
+
+  /* =====================================================
+     INITIALIZATION
+  ===================================================== */
 
   async function init() {
+    /*
+     * First restore persistent authentication.
+     */
+    restoreToken();
+
+    /*
+     * Install visual fixes immediately.
+     */
+    installBackground();
+
+    forceMainLogo();
+
+    setupImageObserver();
+
     finishLoadingScreen();
 
     setupNavigation();
+
     setupEvents();
 
+    /*
+     * Restore the logged-in account.
+     *
+     * IMPORTANT:
+     * We do this BEFORE loading the rest of
+     * the authenticated UI.
+     */
     await loadAccount();
 
+    /*
+     * Load public data regardless of login state.
+     */
     await Promise.allSettled([
       loadValues(),
       loadCoinflips(),
@@ -1994,10 +2910,12 @@
     ]);
 
     const initial =
-      location.hash.replace(
-        "#",
-        ""
-      ) || "coinflip";
+      location.hash
+        .replace(
+          "#",
+          ""
+        ) ||
+      "coinflip";
 
     openPage(
       pages[initial]
@@ -2005,19 +2923,59 @@
         : "coinflip"
     );
 
-    setInterval(() => {
-      if (
-        state.page ===
-        "coinflip"
-      ) {
-        loadCoinflips();
-      }
+    /*
+     * Refresh public information.
+     */
+    setInterval(
+      () => {
+        if (
+          state.page ===
+          "coinflip"
+        ) {
+          loadCoinflips();
+        }
 
-      if (state.chatOpen) {
-        loadChat();
-      }
-    }, 5000);
+        if (
+          state.chatOpen
+        ) {
+          loadChat();
+        }
+      },
+      5000
+    );
+
+    /*
+     * Keep the saved login session
+     * synchronized.
+     */
+    setInterval(
+      heartbeat,
+      30000
+    );
+
+    /*
+     * If another script changes the DOM,
+     * make sure the Roblox logo remains correct.
+     */
+    setTimeout(
+      forceMainLogo,
+      100
+    );
+
+    setTimeout(
+      forceMainLogo,
+      500
+    );
+
+    setTimeout(
+      forceMainLogo,
+      1500
+    );
   }
+
+  /* =====================================================
+     START
+  ===================================================== */
 
   if (
     document.readyState ===
@@ -2025,7 +2983,10 @@
   ) {
     document.addEventListener(
       "DOMContentLoaded",
-      init
+      init,
+      {
+        once: true
+      }
     );
   } else {
     init();
