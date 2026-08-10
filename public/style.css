@@ -1924,3 +1924,119 @@ width: 85px;
 height: 85px;
 }
 }
+/* =====================================================
+   ADMFLIP HEADER FIX
+   ===================================================== */
+
+header,
+.topbar,
+.navbar {
+  width: 100%;
+}
+
+header .header-inner,
+header .topbar-inner,
+header .navbar-inner,
+.topbar .header-inner,
+.topbar .topbar-inner,
+.navbar .header-inner,
+.navbar .navbar-inner {
+  display: grid !important;
+  grid-template-columns: 1fr auto 1fr !important;
+  align-items: center !important;
+  width: 100% !important;
+  max-width: 1400px !important;
+  margin: 0 auto !important;
+  padding: 0 24px !important;
+  box-sizing: border-box !important;
+}
+
+/* Logo stays on the left */
+header .logo,
+header .site-logo,
+header .brand,
+.topbar .logo,
+.topbar .site-logo,
+.topbar .brand,
+.navbar .logo,
+.navbar .site-logo,
+.navbar .brand {
+  justify-self: start !important;
+}
+
+/* NAV BUTTONS stay exactly in the middle */
+header nav,
+header .nav,
+header .nav-links,
+header .navigation,
+.topbar nav,
+.topbar .nav,
+.topbar .nav-links,
+.navbar nav,
+.navbar .nav,
+.navbar .nav-links {
+  justify-self: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+}
+
+/* Login/account area stays on the right */
+header .header-actions,
+header .actions,
+header .right,
+.topbar .header-actions,
+.topbar .actions,
+.navbar .header-actions,
+.navbar .actions {
+  justify-self: end !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Don't let individual nav items push themselves */
+.nav-item {
+  flex: 0 0 auto !important;
+}
+
+/* =====================================================
+   REMOVE DUPLICATE ICONS
+   ===================================================== */
+
+/* Chat button: keep only the text + first icon */
+#topChatButton > svg:nth-of-type(n + 2),
+#topChatButton > img:nth-of-type(n + 2),
+#topChatButton > i:nth-of-type(n + 2) {
+  display: none !important;
+}
+
+/* Roblox login button: keep only ONE icon */
+#loginBtn > svg:nth-of-type(n + 2),
+#loginBtn > img:nth-of-type(n + 2),
+#loginBtn > i:nth-of-type(n + 2) {
+  display: none !important;
+}
+
+/* If the duplicate Roblox image is coming from nested elements */
+#loginBtn .login-icon ~ img,
+#loginBtn .roblox-icon ~ img {
+  display: none !important;
+}
+
+/* Prevent pseudo-elements from creating another icon */
+#topChatButton::before,
+#topChatButton::after,
+#loginBtn::before,
+#loginBtn::after {
+  content: none !important;
+}
+
+/* Keep buttons clean */
+#topChatButton,
+#loginBtn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+}
