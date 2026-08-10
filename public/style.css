@@ -1,3 +1,4 @@
+```css
 * {
   margin: 0;
   padding: 0;
@@ -24,10 +25,16 @@
   --red: #f05b67;
 
   --header-height: 78px;
+
   --chat-width: 20vw;
   --chat-min-width: 300px;
   --chat-max-width: 420px;
 }
+
+
+/* =========================================================
+   GLOBAL
+   ========================================================= */
 
 html,
 body {
@@ -54,25 +61,6 @@ body {
     sans-serif;
 
   overflow-x: hidden;
-}
-.deposit-withdraw-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 16px;
-  border-radius: 10px;
-  background: #5865f2;
-  color: #fff;
-  text-decoration: none;
-  font-weight: 700;
-  font-size: 14px;
-  transition: 0.2s ease;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.deposit-withdraw-btn:hover {
-  background: #4752c4;
-  transform: translateY(-1px);
 }
 
 button,
@@ -114,6 +102,7 @@ button:disabled {
   margin-bottom: 7px;
 }
 
+
 /* =========================================================
    STARTUP LOADING SCREEN
    ========================================================= */
@@ -150,42 +139,72 @@ button:disabled {
 
 .loading-brand {
   width: min(260px, 65vw);
+
   display: flex;
   flex-direction: column;
   align-items: center;
+
   gap: 18px;
 }
 
 .loading-logo {
   width: 105px;
   height: 105px;
+
   object-fit: contain;
   border-radius: 20px;
-  filter: drop-shadow(0 12px 30px rgba(139, 92, 246, 0.22));
-  animation: loading-logo-in 0.45s ease-out both;
+
+  filter:
+    drop-shadow(
+      0 12px 30px
+      rgba(139, 92, 246, 0.22)
+    );
+
+  animation:
+    loading-logo-in 0.45s ease-out both;
 }
 
 .loading-line {
   width: 100%;
   height: 3px;
+
   overflow: hidden;
+
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+
+  background:
+    rgba(255, 255, 255, 0.08);
 }
 
 .loading-line span {
   display: block;
+
   width: 0;
   height: 100%;
+
   border-radius: inherit;
+
   background: var(--purple);
-  box-shadow: 0 0 16px rgba(139, 92, 246, 0.65);
-  animation: loading-line-grow 0.65s cubic-bezier(.22, 1, .36, 1) forwards;
+
+  box-shadow:
+    0 0 16px
+    rgba(139, 92, 246, 0.65);
+
+  animation:
+    loading-line-grow
+    0.65s
+    cubic-bezier(.22, 1, .36, 1)
+    forwards;
 }
 
 @keyframes loading-line-grow {
-  from { width: 0; }
-  to { width: 100%; }
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 100%;
+  }
 }
 
 @keyframes loading-logo-in {
@@ -193,6 +212,7 @@ button:disabled {
     opacity: 0;
     transform: scale(0.92);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -207,10 +227,10 @@ button:disabled {
   }
 }
 
+
 /* =========================================================
    HEADER
    ========================================================= */
-
 
 header {
   position: sticky;
@@ -224,12 +244,17 @@ header {
 
   padding: 0 25px;
 
-  background: rgba(15, 16, 23, 0.96);
+  background:
+    rgba(15, 16, 23, 0.96);
 
-  border-bottom: 1px solid var(--border);
+  border-bottom:
+    1px solid var(--border);
 
   backdrop-filter: blur(15px);
 }
+
+
+/* BRAND */
 
 .brand {
   display: flex;
@@ -253,6 +278,8 @@ header {
 }
 
 
+/* NAV */
+
 .nav {
   display: flex;
   align-items: center;
@@ -260,10 +287,15 @@ header {
   gap: 5px;
 
   margin-left: auto;
-  margin-right: 20px;
+  margin-right: auto;
 }
 
 .nav-item {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 7px;
+
   border: 0;
 
   background: transparent;
@@ -276,9 +308,12 @@ header {
 
   font-weight: 800;
 
+  text-decoration: none;
+
   transition:
     color 0.15s,
-    background 0.15s;
+    background 0.15s,
+    transform 0.15s;
 }
 
 .nav-item:hover,
@@ -289,10 +324,8 @@ header {
     rgba(139, 92, 246, 0.12);
 }
 
-.nav-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+.nav-item:hover {
+  transform: translateY(-1px);
 }
 
 .nav-icon {
@@ -317,6 +350,53 @@ header {
   border-radius: 50%;
 }
 
+
+/* =========================================================
+   DEPOSIT / WITHDRAW BUTTON
+   ========================================================= */
+
+.deposit-withdraw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  border: 0;
+
+  background: transparent;
+
+  color: var(--muted);
+
+  padding: 10px 14px;
+
+  border-radius: 9px;
+
+  font-weight: 800;
+  font-size: inherit;
+
+  text-decoration: none;
+
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.deposit-withdraw-btn:hover {
+  color: #ffffff;
+
+  background:
+    rgba(88, 101, 242, 0.16);
+
+  transform: translateY(-1px);
+}
+
+.deposit-withdraw-btn .nav-icon {
+  font-size: 16px;
+}
+
+
 /* =========================================================
    ACCOUNT
    ========================================================= */
@@ -326,6 +406,9 @@ header {
   align-items: center;
 
   gap: 9px;
+
+  min-width: 130px;
+  justify-content: flex-end;
 }
 
 .login-button {
@@ -350,9 +433,11 @@ header {
 
   padding: 4px 7px;
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
-  background: var(--panel-2);
+  background:
+    var(--panel-2);
 
   border-radius: 999px;
 }
@@ -391,6 +476,7 @@ header {
 .account-menu-btn {
   display: inline-flex;
   align-items: center;
+
   gap: 6px;
 }
 
@@ -404,6 +490,7 @@ header {
   background:
     rgba(255, 255, 255, 0.05);
 }
+
 
 /* =========================================================
    BUTTONS
@@ -447,6 +534,7 @@ header {
   width: 100%;
 }
 
+
 /* =========================================================
    MAIN
    ========================================================= */
@@ -464,10 +552,18 @@ main {
 }
 
 body.chat-open main {
-  width: calc(100% - var(--chat-width) - 45px);
+  width:
+    calc(
+      100% -
+      var(--chat-width) -
+      45px
+    );
 
   margin-left:
-    calc(var(--chat-width) + 20px);
+    calc(
+      var(--chat-width) +
+      20px
+    );
 
   margin-right: 20px;
 }
@@ -482,6 +578,7 @@ body.chat-open main {
 
 .page-heading {
   display: flex;
+
   justify-content: space-between;
   align-items: flex-end;
 
@@ -499,6 +596,7 @@ body.chat-open main {
   margin-top: 5px;
 }
 
+
 /* =========================================================
    PANELS
    ========================================================= */
@@ -511,14 +609,16 @@ body.chat-open main {
       rgba(17, 19, 28, 0.98)
     );
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
   border-radius: 14px;
 
   padding: 20px;
 
   box-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.17);
+    0 10px 35px
+    rgba(0, 0, 0, 0.17);
 }
 
 .panel h2 {
@@ -527,6 +627,13 @@ body.chat-open main {
 
   margin-bottom: 8px;
 }
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 
 /* =========================================================
    STATS
@@ -546,9 +653,11 @@ body.chat-open main {
 .stat-card {
   padding: 18px;
 
-  background: var(--panel);
+  background:
+    var(--panel);
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
   border-radius: 12px;
 }
@@ -556,6 +665,7 @@ body.chat-open main {
 .stat-label {
   display: flex;
   align-items: center;
+
   gap: 7px;
 
   color: var(--muted);
@@ -570,6 +680,7 @@ body.chat-open main {
 
 .stat-label i {
   font-size: 15px;
+
   color: var(--purple-light);
 }
 
@@ -579,6 +690,7 @@ body.chat-open main {
   font-size: 1.5rem;
 }
 
+
 /* =========================================================
    COINFLIP
    ========================================================= */
@@ -586,7 +698,8 @@ body.chat-open main {
 .coinflip-layout {
   display: grid;
 
-  grid-template-columns: 320px 1fr;
+  grid-template-columns:
+    320px 1fr;
 
   gap: 20px;
 }
@@ -604,9 +717,11 @@ body.chat-open main {
 
   padding: 10px;
 
-  background: var(--panel-2);
+  background:
+    var(--panel-2);
 
-  border: 1px solid var(--purple);
+  border:
+    1px solid var(--purple);
 
   border-radius: 10px;
 }
@@ -629,9 +744,11 @@ body.chat-open main {
 
   padding: 13px;
 
-  background: var(--panel-2);
+  background:
+    var(--panel-2);
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
   border-radius: 11px;
 }
@@ -710,11 +827,14 @@ body.chat-open main {
 
 .history-list {
   display: flex;
+
   flex-direction: column;
+
   gap: 8px;
 
   margin-top: 12px;
 }
+
 
 /* =========================================================
    VALUES
@@ -734,11 +854,13 @@ body.chat-open main {
 .value-search {
   width: 330px;
 
-  background: var(--bg);
+  background:
+    var(--bg);
 
   color: var(--text);
 
-  border: 1px solid var(--border-light);
+  border:
+    1px solid var(--border-light);
 
   border-radius: 9px;
 
@@ -759,7 +881,10 @@ body.chat-open main {
   display: grid;
 
   grid-template-columns:
-    repeat(auto-fill, minmax(180px, 1fr));
+    repeat(
+      auto-fill,
+      minmax(180px, 1fr)
+    );
 
   gap: 13px;
 }
@@ -782,7 +907,8 @@ body.chat-open main {
       var(--panel)
     );
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
   border-radius: 13px;
 
@@ -798,7 +924,8 @@ body.chat-open main {
   border-color: var(--purple);
 
   box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.3);
+    0 10px 30px
+    rgba(0, 0, 0, 0.3);
 }
 
 .pet-card.selected {
@@ -854,7 +981,8 @@ body.chat-open main {
 
   padding-top: 12px;
 
-  border-top: 1px solid var(--border);
+  border-top:
+    1px solid var(--border);
 
   color: var(--muted);
 
@@ -866,6 +994,7 @@ body.chat-open main {
 
   font-size: 0.95rem;
 }
+
 
 /* =========================================================
    MODALS
@@ -909,12 +1038,14 @@ body.chat-open main {
       #10121a
     );
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
   border-radius: 16px;
 
   box-shadow:
-    0 25px 80px rgba(0, 0, 0, 0.55);
+    0 25px 80px
+    rgba(0, 0, 0, 0.55);
 }
 
 .large-modal {
@@ -952,6 +1083,7 @@ body.chat-open main {
     rgba(255, 255, 255, 0.05);
 }
 
+
 /* =========================================================
    LOGIN
    ========================================================= */
@@ -964,7 +1096,8 @@ body.chat-open main {
 
   object-fit: cover;
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
   border-radius: 10px;
 
@@ -984,11 +1117,13 @@ body.chat-open main {
 
   min-width: 0;
 
-  background: var(--bg);
+  background:
+    var(--bg);
 
   color: var(--text);
 
-  border: 1px solid var(--border-light);
+  border:
+    1px solid var(--border-light);
 
   border-radius: 9px;
 
@@ -1006,9 +1141,11 @@ body.chat-open main {
 
   padding: 12px;
 
-  background: var(--panel-2);
+  background:
+    var(--panel-2);
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
   border-radius: 11px;
 }
@@ -1051,9 +1188,11 @@ body.chat-open main {
 
   padding: 14px;
 
-  background: var(--bg);
+  background:
+    var(--bg);
 
-  border: 1px dashed var(--purple);
+  border:
+    1px dashed var(--purple);
 
   border-radius: 10px;
 }
@@ -1100,6 +1239,7 @@ body.chat-open main {
   font-size: 0.85rem;
 }
 
+
 /* =========================================================
    INVENTORY / CREATE
    ========================================================= */
@@ -1108,7 +1248,10 @@ body.chat-open main {
   display: grid;
 
   grid-template-columns:
-    repeat(auto-fill, minmax(145px, 1fr));
+    repeat(
+      auto-fill,
+      minmax(145px, 1fr)
+    );
 
   gap: 10px;
 
@@ -1135,7 +1278,8 @@ body.chat-open main {
 
   padding-top: 18px;
 
-  border-top: 1px solid var(--border);
+  border-top:
+    1px solid var(--border);
 }
 
 .side-title {
@@ -1149,7 +1293,8 @@ body.chat-open main {
 .side-buttons {
   display: grid;
 
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns:
+    1fr 1fr;
 
   gap: 9px;
 
@@ -1159,9 +1304,11 @@ body.chat-open main {
 .side-btn {
   padding: 11px;
 
-  border: 1px solid var(--border-light);
+  border:
+    1px solid var(--border-light);
 
-  background: var(--panel-2);
+  background:
+    var(--panel-2);
 
   color: var(--muted);
 
@@ -1180,14 +1327,17 @@ body.chat-open main {
   border-color: var(--purple);
 }
 
+
 /* =========================================================
    PROFILE
    ========================================================= */
 
 .profile-card {
-  background: var(--panel);
+  background:
+    var(--panel);
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
   border-radius: 14px;
 
@@ -1212,7 +1362,8 @@ body.chat-open main {
 
   border-radius: 15px;
 
-  border: 2px solid var(--purple);
+  border:
+    2px solid var(--purple);
 }
 
 .profile-user strong {
@@ -1239,9 +1390,11 @@ body.chat-open main {
 .profile-stat {
   padding: 15px;
 
-  background: var(--panel-2);
+  background:
+    var(--panel-2);
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
   border-radius: 10px;
 }
@@ -1263,14 +1416,10 @@ body.chat-open main {
   font-size: 1.2rem;
 }
 
+
 /* =========================================================
    CHAT
    ========================================================= */
-
-/*
-  Chat occupies the left 20% of the screen.
-  The site itself shrinks while chat is open.
-*/
 
 .chat-panel {
   position: fixed;
@@ -1298,20 +1447,23 @@ body.chat-open main {
       #0c0e14
     );
 
-  border-right: 1px solid var(--border);
+  border-right:
+    1px solid var(--border);
 
   box-shadow:
     12px 0 35px
     rgba(0, 0, 0, 0.25);
 
-  transform: translateX(-105%);
+  transform:
+    translateX(-105%);
 
   transition:
     transform 0.25s ease;
 }
 
 body.chat-open .chat-panel {
-  transform: translateX(0);
+  transform:
+    translateX(0);
 }
 
 .chat-header {
@@ -1327,7 +1479,8 @@ body.chat-open .chat-panel {
   background:
     rgba(20, 22, 32, 0.96);
 
-  border-bottom: 1px solid var(--border);
+  border-bottom:
+    1px solid var(--border);
 }
 
 .chat-header strong {
@@ -1356,7 +1509,8 @@ body.chat-open .chat-panel {
 
   display: inline-block;
 
-  background: var(--green);
+  background:
+    var(--green);
 
   border-radius: 50%;
 }
@@ -1365,9 +1519,11 @@ body.chat-open .chat-panel {
   width: 32px;
   height: 32px;
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
-  background: var(--panel-2);
+  background:
+    var(--panel-2);
 
   color: var(--muted);
 
@@ -1417,7 +1573,8 @@ body.chat-open .chat-panel {
 
   border-radius: 9px;
 
-  background: var(--panel-3);
+  background:
+    var(--panel-3);
 }
 
 .chat-content {
@@ -1449,7 +1606,8 @@ body.chat-open .chat-panel {
   background:
     rgba(139, 92, 246, 0.08);
 
-  border: 1px solid
+  border:
+    1px solid
     rgba(139, 92, 246, 0.2);
 
   margin-bottom: 8px;
@@ -1473,9 +1631,11 @@ body.chat-open .chat-panel {
 
   padding: 12px;
 
-  background: var(--panel);
+  background:
+    var(--panel);
 
-  border-top: 1px solid var(--border);
+  border-top:
+    1px solid var(--border);
 }
 
 .chat-form input {
@@ -1483,11 +1643,13 @@ body.chat-open .chat-panel {
 
   min-width: 0;
 
-  background: var(--bg);
+  background:
+    var(--bg);
 
   color: var(--text);
 
-  border: 1px solid var(--border-light);
+  border:
+    1px solid var(--border-light);
 
   border-radius: 9px;
 
@@ -1503,7 +1665,8 @@ body.chat-open .chat-panel {
 .chat-send {
   border: 0;
 
-  background: var(--purple);
+  background:
+    var(--purple);
 
   color: white;
 
@@ -1515,8 +1678,20 @@ body.chat-open .chat-panel {
 }
 
 .chat-send:hover {
-  background: var(--purple-dark);
+  background:
+    var(--purple-dark);
 }
+
+.chat-online-icon {
+  color: var(--green);
+
+  font-size: 13px;
+
+  vertical-align: -1px;
+
+  margin-right: 3px;
+}
+
 
 /* =========================================================
    TOAST
@@ -1532,9 +1707,11 @@ body.chat-open .chat-panel {
 
   padding: 11px 17px;
 
-  background: var(--panel-3);
+  background:
+    var(--panel-3);
 
-  border: 1px solid var(--border);
+  border:
+    1px solid var(--border);
 
   color: white;
 
@@ -1563,9 +1740,32 @@ body.chat-open .chat-panel {
     translate(-50%, 0);
 }
 
+
 /* =========================================================
    RESPONSIVE
    ========================================================= */
+
+@media (max-width: 1100px) {
+
+  .nav {
+    gap: 2px;
+  }
+
+  .nav-item {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .deposit-withdraw-btn span {
+    display: none;
+  }
+
+  .deposit-withdraw-btn {
+    padding: 10px;
+  }
+
+}
+
 
 @media (max-width: 900px) {
 
@@ -1582,12 +1782,16 @@ body.chat-open .chat-panel {
   }
 
   body.chat-open main {
-    width: calc(100% - 340px);
+    width:
+      calc(
+        100% - 340px
+      );
 
     margin-left: 330px;
   }
 
 }
+
 
 @media (max-width: 650px) {
 
@@ -1613,7 +1817,10 @@ body.chat-open .chat-panel {
 
   main,
   body.chat-open main {
-    width: calc(100% - 24px);
+    width:
+      calc(
+        100% - 24px
+      );
 
     margin-left: 12px;
     margin-right: 12px;
@@ -1652,11 +1859,4 @@ body.chat-open .chat-panel {
   }
 
 }
-
-
-.chat-online-icon {
-  color: var(--green);
-  font-size: 13px;
-  vertical-align: -1px;
-  margin-right: 3px;
-}
+```
