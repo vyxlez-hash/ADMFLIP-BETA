@@ -19,10 +19,7 @@
     backend: BACKEND
   };
 
-  console.log(
-    "[ADMFLIP] Backend:",
-    BACKEND
-  );
+  console.log("[ADMFLIP] Backend:", BACKEND);
 
   /* =====================================================
      STATE
@@ -30,56 +27,37 @@
 
   const state = {
     page: "coinflip",
-
     user: null,
-
     verification: null,
-
     pets: [],
-
     inventory: [],
-
     selectedPet: null,
-
     selectedSide: null,
-
     coinflips: [],
-
     chatOpen: false,
-
     onlineCount: 0,
-
-    token:
-      localStorage.getItem(
-        "admflip_token"
-      ) || null
+    token: localStorage.getItem("admflip_token") || null
   };
 
   /* =====================================================
      CONSTANTS
   ===================================================== */
 
-  const LOGO =
-    "/roblox.png";
-
-  const BACKGROUND =
-    "/blurry.png";
-
-  const TOKEN_KEY =
-    "admflip_token";
+  const LOGO = "/roblox.png";
+  const BACKGROUND = "/blurry.png";
+  const TOKEN_KEY = "admflip_token";
 
   /* =====================================================
      DOM HELPERS
   ===================================================== */
 
-  const $ = (selector) =>
-    document.querySelector(selector);
+  const $ = (selector) => document.querySelector(selector);
 
-  const $$ = (selector) =>
-    [...document.querySelectorAll(selector)];
+  const $$ = (selector) => [
+    ...document.querySelectorAll(selector)
+  ];
 
-  const el = (id) =>
-    document.getElementById(id);
+  const el = (id) => document.getElementById(id);
 
   function show(node) {
     if (node) {
@@ -180,11 +158,11 @@
     return (
       Number(
         pet?.value ??
-        pet?.normalValue ??
-        pet?.worth ??
-        pet?.price ??
-        pet?.petValue ??
-        0
+          pet?.normalValue ??
+          pet?.worth ??
+          pet?.price ??
+          pet?.petValue ??
+          0
       ) || 0
     );
   }
@@ -233,6 +211,10 @@
   ===================================================== */
 
   function fixLogoImages(root = document) {
+    if (!root) {
+      return;
+    }
+
     const images =
       root.querySelectorAll
         ? root.querySelectorAll("img")
@@ -254,15 +236,11 @@
       image.addEventListener(
         "error",
         () => {
-          if (
-            image.dataset.admflipFallback
-          ) {
+          if (image.dataset.admflipFallback) {
             return;
           }
 
-          image.dataset.admflipFallback =
-            "1";
-
+          image.dataset.admflipFallback = "1";
           image.src = LOGO;
         },
         {
@@ -285,58 +263,39 @@
 
     let found = false;
 
-    possibleSelectors.forEach(
-      (selector) => {
-        $$(selector).forEach(
-          (image) => {
-            image.src = LOGO;
-            image.removeAttribute(
-              "srcset"
-            );
+    possibleSelectors.forEach((selector) => {
+      $$(selector).forEach((image) => {
+        image.src = LOGO;
+        image.removeAttribute("srcset");
 
-            image.style.objectFit =
-              "contain";
+        image.style.objectFit = "contain";
+        image.style.filter = "none";
 
-            image.style.filter =
-              "none";
+        image.dataset.admflipLogo = "true";
 
-            image.dataset.admflipLogo =
-              "true";
-
-            found = true;
-          }
-        );
-      }
-    );
+        found = true;
+      });
+    });
 
     if (!found) {
-      $$("img").forEach(
-        (image) => {
-          const alt =
-            (
-              image.alt || ""
-            ).toLowerCase();
+      $$("img").forEach((image) => {
+        const alt =
+          (image.alt || "").toLowerCase();
 
-          const src =
-            (
-              image.src || ""
-            ).toLowerCase();
+        const src =
+          (image.src || "").toLowerCase();
 
-          if (
-            alt.includes("logo") ||
-            src.includes("logo")
-          ) {
-            image.src = LOGO;
-            image.removeAttribute(
-              "srcset"
-            );
-            image.style.objectFit =
-              "contain";
-            image.style.filter =
-              "none";
-          }
+        if (
+          alt.includes("logo") ||
+          src.includes("logo")
+        ) {
+          image.src = LOGO;
+          image.removeAttribute("srcset");
+
+          image.style.objectFit = "contain";
+          image.style.filter = "none";
         }
-      );
+      });
     }
 
     fixLogoImages();
@@ -356,9 +315,7 @@
     }
 
     const style =
-      document.createElement(
-        "style"
-      );
+      document.createElement("style");
 
     style.id =
       "admflip-background-fix";
@@ -383,7 +340,7 @@
         pointer-events: none;
 
         background-image:
-          url("/blurry.png");
+          url("${BACKGROUND}");
 
         background-size: cover;
         background-position: center;
@@ -409,11 +366,6 @@
             rgba(0, 0, 0, 0.72)
           );
       }
-
-      /*
-       * Keep UI above the background.
-       * Nothing inside the site gets the blur.
-       */
 
       header,
       nav,
@@ -447,9 +399,7 @@
       }
     `;
 
-    document.head.appendChild(
-      style
-    );
+    document.head.appendChild(style);
   }
 
   /* =====================================================
@@ -457,8 +407,7 @@
   ===================================================== */
 
   function toast(message) {
-    const box =
-      el("toast");
+    const box = el("toast");
 
     if (!box) {
       console.warn(
@@ -469,22 +418,15 @@
       return;
     }
 
-    box.textContent =
-      message;
+    box.textContent = message;
 
-    box.classList.add(
-      "show"
-    );
+    box.classList.add("show");
 
-    clearTimeout(
-      box._timeout
-    );
+    clearTimeout(box._timeout);
 
     box._timeout =
       setTimeout(() => {
-        box.classList.remove(
-          "show"
-        );
+        box.classList.remove("show");
       }, 2800);
   }
 
@@ -492,34 +434,24 @@
      API
   ===================================================== */
 
-  async function api(
-    path,
-    options = {}
-  ) {
+  async function api(path, options = {}) {
     const cleanPath =
-      String(path || "").startsWith(
-        "/"
-      )
+      String(path || "").startsWith("/")
         ? String(path)
-        : "/" +
-          String(path);
+        : "/" + String(path);
 
     const headers = {
-      Accept:
-        "application/json"
+      Accept: "application/json"
     };
 
     if (options.body) {
-      headers[
-        "Content-Type"
-      ] =
+      headers["Content-Type"] =
         "application/json";
     }
 
     if (state.token) {
       headers.Authorization =
-        "Bearer " +
-        state.token;
+        "Bearer " + state.token;
     }
 
     Object.assign(
@@ -530,22 +462,15 @@
     let response;
 
     try {
-      response =
-        await fetch(
-          BACKEND +
-            cleanPath,
-          {
-            credentials:
-              "include",
-
-            cache:
-              "no-store",
-
-            ...options,
-
-            headers
-          }
-        );
+      response = await fetch(
+        BACKEND + cleanPath,
+        {
+          credentials: "include",
+          cache: "no-store",
+          ...options,
+          headers
+        }
+      );
     } catch (error) {
       console.error(
         "[ADMFLIP API NETWORK]",
@@ -574,22 +499,13 @@
     if (!response.ok) {
       const message =
         data &&
-        typeof data ===
-          "object"
+        typeof data === "object"
           ? (
               data.message ||
               data.error ||
               data.details
             )
           : null;
-
-      /*
-       * Do NOT immediately delete the token
-       * on every failed request.
-       *
-       * A temporary backend error must not
-       * log the user out.
-       */
 
       throw new Error(
         message ||
@@ -609,8 +525,7 @@
       return;
     }
 
-    state.token =
-      String(token);
+    state.token = String(token);
 
     localStorage.setItem(
       TOKEN_KEY,
@@ -619,8 +534,7 @@
   }
 
   function clearToken() {
-    state.token =
-      null;
+    state.token = null;
 
     localStorage.removeItem(
       TOKEN_KEY
@@ -637,14 +551,12 @@
       token &&
       token.trim()
     ) {
-      state.token =
-        token.trim();
+      state.token = token.trim();
 
       return true;
     }
 
-    state.token =
-      null;
+    state.token = null;
 
     return false;
   }
@@ -654,33 +566,21 @@
   ===================================================== */
 
   const pages = {
-    coinflip:
-      "coinflipPage",
-
-    values:
-      "valuesPage",
-
-    profile:
-      "profilePage"
+    coinflip: "coinflipPage",
+    values: "valuesPage",
+    profile: "profilePage"
   };
 
-  function openPage(
-    page
-  ) {
+  function openPage(page) {
     if (!pages[page]) {
-      page =
-        "coinflip";
+      page = "coinflip";
     }
 
-    state.page =
-      page;
+    state.page = page;
 
-    Object.entries(
-      pages
-    ).forEach(
+    Object.entries(pages).forEach(
       ([name, id]) => {
-        const pageElement =
-          el(id);
+        const pageElement = el(id);
 
         if (!pageElement) {
           return;
@@ -697,30 +597,20 @@
       (button) => {
         button.classList.toggle(
           "active",
-          button.dataset.page ===
-            page
+          button.dataset.page === page
         );
       }
     );
 
-    if (
-      page ===
-      "values"
-    ) {
+    if (page === "values") {
       loadValues();
     }
 
-    if (
-      page ===
-      "coinflip"
-    ) {
+    if (page === "coinflip") {
       loadCoinflips();
     }
 
-    if (
-      page ===
-      "profile"
-    ) {
+    if (page === "profile") {
       renderProfile();
     }
 
@@ -755,16 +645,12 @@
       }
     );
 
-    el(
-      "brand"
-    )?.addEventListener(
+    el("brand")?.addEventListener(
       "click",
       (event) => {
         event.preventDefault();
 
-        openPage(
-          "coinflip"
-        );
+        openPage("coinflip");
       }
     );
   }
@@ -782,24 +668,32 @@
       return;
     }
 
+    const retryId =
+      "retry_" +
+      Math.random()
+        .toString(36)
+        .slice(2);
+
     container.innerHTML =
       `<div class="loading">${escapeHTML(
         text
       )}</div>` +
       (
         retryFn
-          ? `<button class="retry-btn" id="retryBtn">Retry</button>`
+          ? `<button class="retry-btn" id="${retryId}">Retry</button>`
           : ""
       );
 
-    const btn =
-      el("retryBtn");
+    if (retryFn) {
+      const btn =
+        el(retryId);
 
-    if (btn) {
-      btn.addEventListener(
-        "click",
-        retryFn
-      );
+      if (btn) {
+        btn.addEventListener(
+          "click",
+          retryFn
+        );
+      }
     }
   }
 
@@ -824,40 +718,27 @@
       input.value = "";
 
       setTimeout(
-        () =>
-          input.focus(),
+        () => input.focus(),
         50
       );
     }
 
-    hide(
-      el("loginProfile")
-    );
-
-    hide(
-      el("phrase")
-    );
-
-    hide(
-      el("verify")
-    );
+    hide(el("loginProfile"));
+    hide(el("phrase"));
+    hide(el("verify"));
 
     const message =
       el("loginMessage");
 
     if (message) {
-      message.textContent =
-        "";
+      message.textContent = "";
     }
 
-    state.verification =
-      null;
+    state.verification = null;
   }
 
   function closeLogin() {
-    hide(
-      el("loginModal")
-    );
+    hide(el("loginModal"));
   }
 
   function makeVerificationPhrase() {
@@ -886,7 +767,7 @@
       words[
         Math.floor(
           Math.random() *
-            words.length
+          words.length
         )
       ];
 
@@ -894,15 +775,14 @@
       words[
         Math.floor(
           Math.random() *
-            words.length
+          words.length
         )
       ];
 
     const number =
       Math.floor(
         1000 +
-          Math.random() *
-            9000
+        Math.random() * 9000
       );
 
     return (
@@ -942,17 +822,15 @@
       const data =
         await api(
           "/user/" +
-            encodeURIComponent(
-              username
-            )
+          encodeURIComponent(
+            username
+          )
         );
 
       const robloxUser =
         data?.user;
 
-      if (
-        !robloxUser?.id
-      ) {
+      if (!robloxUser?.id) {
         throw new Error(
           "Roblox user was not found."
         );
@@ -967,7 +845,6 @@
           username,
 
         robloxUser,
-
         phrase
       };
 
@@ -979,9 +856,7 @@
         phrase
       );
 
-      show(
-        el("verify")
-      );
+      show(el("verify"));
 
       if (message) {
         message.textContent =
@@ -1001,9 +876,7 @@
     }
   }
 
-  function renderLoginProfile(
-    user
-  ) {
+  function renderLoginProfile(user) {
     const box =
       el("loginProfile");
 
@@ -1026,19 +899,13 @@
     box.innerHTML = `
       <div class="login-profile-inner">
         <img
-          src="${escapeHTML(
-            avatar
-          )}"
-          alt="${escapeHTML(
-            username
-          )}"
+          src="${escapeHTML(avatar)}"
+          alt="${escapeHTML(username)}"
         >
 
         <div>
           <strong>
-            ${escapeHTML(
-              username
-            )}
+            ${escapeHTML(username)}
           </strong>
 
           <span>
@@ -1053,9 +920,7 @@
     fixLogoImages(box);
   }
 
-  function renderPhrase(
-    phrase
-  ) {
+  function renderPhrase(phrase) {
     const box =
       el("phrase");
 
@@ -1069,9 +934,7 @@
       </div>
 
       <strong>
-        ${escapeHTML(
-          phrase
-        )}
+        ${escapeHTML(phrase)}
       </strong>
 
       <p>
@@ -1104,11 +967,8 @@
     }
 
     if (button) {
-      button.disabled =
-        true;
-
-      button.textContent =
-        "Checking...";
+      button.disabled = true;
+      button.textContent = "Checking...";
     }
 
     if (message) {
@@ -1121,26 +981,23 @@
         await api(
           "/check",
           {
-            method:
-              "POST",
+            method: "POST",
 
-            body:
-              JSON.stringify({
-                username:
-                  state.verification
-                    .username,
+            body: JSON.stringify({
+              username:
+                state.verification
+                  .username,
 
-                phrase:
-                  state.verification
-                    .phrase
-              })
+              phrase:
+                state.verification
+                  .phrase
+            })
           }
         );
 
       if (
         !result ||
-        result.success !==
-          true
+        result.success !== true
       ) {
         throw new Error(
           result?.message ||
@@ -1149,12 +1006,9 @@
       }
 
       state.user =
-        result.user ||
-        null;
+        result.user || null;
 
-      if (
-        result.token
-      ) {
+      if (result.token) {
         saveToken(
           result.token
         );
@@ -1173,16 +1027,12 @@
         }`
       );
 
-      openPage(
-        "coinflip"
-      );
+      openPage("coinflip");
 
-      await Promise.allSettled(
-        [
-          loadCoinflips(),
-          loadChat()
-        ]
-      );
+      await Promise.allSettled([
+        loadCoinflips(),
+        loadChat()
+      ]);
     } catch (error) {
       console.error(
         "Verification:",
@@ -1196,9 +1046,7 @@
       }
     } finally {
       if (button) {
-        button.disabled =
-          false;
-
+        button.disabled = false;
         button.textContent =
           "Verify Roblox Bio";
       }
@@ -1210,16 +1058,10 @@
   ===================================================== */
 
   async function loadAccount() {
-    /*
-     * Always restore the token from localStorage
-     * before making the account request.
-     */
-
     restoreToken();
 
     if (!state.token) {
-      state.user =
-        null;
+      state.user = null;
 
       updateAccountUI();
 
@@ -1228,30 +1070,20 @@
 
     try {
       const data =
-        await api(
-          "/account"
-        );
+        await api("/account");
 
       const account =
         data?.user;
 
       if (!account) {
-        /*
-         * Do not immediately delete the token.
-         * The backend may have returned an unusual
-         * response without actually invalidating it.
-         */
-
-        state.user =
-          null;
+        state.user = null;
 
         updateAccountUI();
 
         return null;
       }
 
-      state.user =
-        account;
+      state.user = account;
 
       state.inventory =
         Array.isArray(
@@ -1269,16 +1101,9 @@
         error.message
       );
 
-      /*
-       * Only clear the session when the backend
-       * explicitly tells us the authentication
-       * is invalid.
-       */
-
       const message =
         String(
-          error.message ||
-            ""
+          error.message || ""
         ).toLowerCase();
 
       const authError =
@@ -1302,8 +1127,7 @@
         clearToken();
       }
 
-      state.user =
-        null;
+      state.user = null;
 
       updateAccountUI();
 
@@ -1321,6 +1145,7 @@
     if (!state.user) {
       show(login);
       hide(account);
+
       return;
     }
 
@@ -1346,11 +1171,10 @@
           state.user.id
         );
 
-      avatar.onerror =
-        () => {
-          avatar.src =
-            LOGO;
-        };
+      avatar.onerror = () => {
+        avatar.onerror = null;
+        avatar.src = LOGO;
+      };
     }
   }
 
@@ -1360,21 +1184,15 @@
         await api(
           "/logout",
           {
-            method:
-              "POST"
+            method: "POST"
           }
         );
       }
     } catch {}
 
-    state.user =
-      null;
-
-    state.inventory =
-      [];
-
-    state.verification =
-      null;
+    state.user = null;
+    state.inventory = [];
+    state.verification = null;
 
     clearToken();
 
@@ -1382,9 +1200,7 @@
 
     renderProfile();
 
-    toast(
-      "Signed out."
-    );
+    toast("Signed out.");
   }
 
   /* =====================================================
@@ -1404,22 +1220,16 @@
 
     try {
       const data =
-        await api(
-          "/pets"
-        );
+        await api("/pets");
 
       const pets =
         Array.isArray(data)
           ? data
-          : data?.pets ||
-            [];
+          : data?.pets || [];
 
-      state.pets =
-        pets;
+      state.pets = pets;
 
-      renderValues(
-        pets
-      );
+      renderValues(pets);
     } catch (error) {
       console.error(
         "Values:",
@@ -1434,9 +1244,7 @@
     }
   }
 
-  function renderValues(
-    pets
-  ) {
+  function renderValues(pets) {
     const grid =
       el("valuesGrid");
 
@@ -1453,17 +1261,13 @@
 
     grid.innerHTML =
       pets
-        .map(
-          renderPetCard
-        )
+        .map(renderPetCard)
         .join("");
 
     fixLogoImages(grid);
   }
 
-  function renderPetCard(
-    pet
-  ) {
+  function renderPetCard(pet) {
     const name =
       petName(pet);
 
@@ -1476,34 +1280,24 @@
     return `
       <article
         class="pet-card"
-        data-pet-name="${escapeHTML(
-          name
-        )}"
+        data-pet-name="${escapeHTML(name)}"
       >
         <img
           class="pet-image"
-          src="${escapeHTML(
-            image
-          )}"
-          alt="${escapeHTML(
-            name
-          )}"
+          src="${escapeHTML(image)}"
+          alt="${escapeHTML(name)}"
           loading="lazy"
         >
 
         <div class="pet-name">
-          ${escapeHTML(
-            name
-          )}
+          ${escapeHTML(name)}
         </div>
 
         <div class="pet-meta">
           <span>Value</span>
 
           <strong class="pet-value">
-            ${formatValue(
-              value
-            )}
+            ${formatValue(value)}
           </strong>
         </div>
       </article>
@@ -1527,24 +1321,20 @@
             .toLowerCase();
 
         $$("#valuesGrid .pet-card")
-          .forEach(
-            (card) => {
-              const name =
-                (
-                  card.dataset
-                    .petName ||
-                  ""
-                ).toLowerCase();
+          .forEach((card) => {
+            const name =
+              (
+                card.dataset
+                  .petName ||
+                ""
+              ).toLowerCase();
 
-              card.style.display =
-                !query ||
-                name.includes(
-                  query
-                )
-                  ? ""
-                  : "none";
-            }
-          );
+            card.style.display =
+              !query ||
+              name.includes(query)
+                ? ""
+                : "none";
+          });
       }
     );
   }
@@ -1563,23 +1353,20 @@
 
     try {
       const data =
-        await api(
-          "/coinflips"
-        );
+        await api("/coinflips");
 
       const flips =
         Array.isArray(
           data?.coinflips
         )
           ? data.coinflips
-          : [];
+          : Array.isArray(data)
+            ? data
+            : [];
 
-      state.coinflips =
-        flips;
+      state.coinflips = flips;
 
-      renderCoinflips(
-        flips
-      );
+      renderCoinflips(flips);
 
       const active =
         el("activeCount");
@@ -1593,10 +1380,7 @@
 
       const total =
         flips.reduce(
-          (
-            sum,
-            flip
-          ) =>
+          (sum, flip) =>
             sum +
             (
               Number(
@@ -1611,9 +1395,7 @@
 
       if (totalNode) {
         totalNode.textContent =
-          formatValue(
-            total
-          );
+          formatValue(total);
       }
     } catch (error) {
       console.error(
@@ -1629,9 +1411,7 @@
     }
   }
 
-  function renderCoinflips(
-    flips
-  ) {
+  function renderCoinflips(flips) {
     const container =
       el("coinflips");
 
@@ -1648,104 +1428,88 @@
 
     container.innerHTML =
       flips
-        .map(
-          (flip) => {
-            const username =
-              flip.username ||
-              "User";
+        .map((flip) => {
+          const username =
+            flip.username ||
+            "User";
 
-            const avatar =
-              flip.avatar ||
-              robloxAvatar(
-                flip.robloxId ||
-                flip.userId
-              );
+          const avatar =
+            flip.avatar ||
+            robloxAvatar(
+              flip.robloxId ||
+              flip.userId
+            );
 
-            const name =
-              flip.petName ||
-              "Pet";
+          const name =
+            flip.petName ||
+            "Pet";
 
-            const value =
-              flip.petValue ||
-              0;
+          const value =
+            flip.petValue || 0;
 
-            const image =
-              flip.image ||
-              petImage({
-                name
-              });
+          const image =
+            flip.image ||
+            petImage({
+              name
+            });
 
-            return `
-              <article
-                class="coinflip-card"
-                data-id="${escapeHTML(
-                  flip.id
-                )}"
-              >
-                <div class="coinflip-player">
+          return `
+            <article
+              class="coinflip-card"
+              data-id="${escapeHTML(
+                flip.id || ""
+              )}"
+            >
+              <div class="coinflip-player">
 
-                  <img
-                    src="${escapeHTML(
-                      avatar
-                    )}"
-                    alt=""
-                  >
+                <img
+                  src="${escapeHTML(avatar)}"
+                  alt=""
+                >
 
-                  <div>
-                    <strong>
-                      ${escapeHTML(
-                        username
-                      )}
-                    </strong>
+                <div>
+                  <strong>
+                    ${escapeHTML(username)}
+                  </strong>
 
-                    <small>
-                      Coinflip
-                    </small>
-                  </div>
-
+                  <small>
+                    Coinflip
+                  </small>
                 </div>
 
-                <div class="coinflip-pet">
+              </div>
 
-                  <img
-                    src="${escapeHTML(
-                      image
-                    )}"
-                    alt=""
-                  >
+              <div class="coinflip-pet">
 
-                  <div>
-                    <strong>
-                      ${escapeHTML(
-                        name
-                      )}
-                    </strong>
+                <img
+                  src="${escapeHTML(image)}"
+                  alt=""
+                >
 
-                    <small class="muted">
-                      ${formatValue(
-                        value
-                      )}
-                    </small>
-                  </div>
+                <div>
+                  <strong>
+                    ${escapeHTML(name)}
+                  </strong>
 
+                  <small class="muted">
+                    ${formatValue(value)}
+                  </small>
                 </div>
 
-                <div class="coinflip-side">
-                  ${escapeHTML(
-                    flip.side ||
-                    "heads"
-                  )}
-                </div>
+              </div>
 
-              </article>
-            `;
-          }
-        )
+              <div class="coinflip-side">
+                ${escapeHTML(
+                  flip.side || "heads"
+                )}
+              </div>
+
+            </article>
+          `;
+        })
         .join("");
 
-    fixLogoImages(
-      container
-    );
+    fixLogoImages(container);
   }
 
   /* =====================================================
@@ -1768,15 +1532,10 @@
 
     show(modal);
 
-    state.selectedPet =
-      null;
+    state.selectedPet = null;
+    state.selectedSide = null;
 
-    state.selectedSide =
-      null;
-
-    hide(
-      el("sideArea")
-    );
+    hide(el("sideArea"));
 
     $$(".side-btn").forEach(
       (button) =>
@@ -1789,9 +1548,7 @@
   }
 
   function closeCreateCoinflip() {
-    hide(
-      el("createModal")
-    );
+    hide(el("createModal"));
   }
 
   async function loadInventory() {
@@ -1823,8 +1580,7 @@
           ? account.inventory
           : [];
 
-      state.inventory =
-        pets;
+      state.inventory = pets;
 
       if (!pets.length) {
         grid.innerHTML =
@@ -1836,10 +1592,7 @@
       grid.innerHTML =
         pets
           .map(
-            (
-              pet,
-              index
-            ) => `
+            (pet, index) => `
               <article
                 class="pet-card"
                 data-index="${index}"
@@ -1847,22 +1600,16 @@
                 <img
                   class="pet-image"
                   src="${escapeHTML(
-                    petImage(
-                      pet
-                    )
+                    petImage(pet)
                   )}"
                   alt="${escapeHTML(
-                    petName(
-                      pet
-                    )
+                    petName(pet)
                   )}"
                 >
 
                 <div class="pet-name">
                   ${escapeHTML(
-                    petName(
-                      pet
-                    )
+                    petName(pet)
                   )}
                 </div>
 
@@ -1873,9 +1620,7 @@
 
                   <strong class="pet-value">
                     ${formatValue(
-                      petValue(
-                        pet
-                      )
+                      petValue(pet)
                     )}
                   </strong>
                 </div>
@@ -1884,76 +1629,67 @@
           )
           .join("");
 
-      fixLogoImages(
-        grid
-      );
+      fixLogoImages(grid);
 
       $$("#createInventory .pet-card")
-        .forEach(
-          (card) => {
-            card.addEventListener(
-              "click",
-              () => {
-                $$("#createInventory .pet-card")
-                  .forEach(
-                    (item) =>
-                      item.classList.remove(
-                        "selected"
-                      )
-                  );
-
-                card.classList.add(
-                  "selected"
-                );
-
-                state.selectedPet =
-                  state.inventory[
-                    Number(
-                      card.dataset
-                        .index
+        .forEach((card) => {
+          card.addEventListener(
+            "click",
+            () => {
+              $$("#createInventory .pet-card")
+                .forEach(
+                  (item) =>
+                    item.classList.remove(
+                      "selected"
                     )
-                  ];
-
-                show(
-                  el(
-                    "sideArea"
-                  )
                 );
 
-                const preview =
-                  el(
-                    "selectedPetPreview"
-                  );
+              card.classList.add(
+                "selected"
+              );
 
-                if (preview) {
-                  preview.innerHTML = `
-                    <strong>
-                      Selected:
-                    </strong>
+              state.selectedPet =
+                state.inventory[
+                  Number(
+                    card.dataset.index
+                  )
+                ];
 
-                    ${escapeHTML(
-                      petName(
-                        state.selectedPet
-                      )
-                    )}
+              show(
+                el("sideArea")
+              );
 
-                    ·
+              const preview =
+                el(
+                  "selectedPetPreview"
+                );
 
-                    ${formatValue(
-                      petValue(
-                        state.selectedPet
-                      )
-                    )}
-                  `;
+              if (preview) {
+                preview.innerHTML = `
+                  <strong>
+                    Selected:
+                  </strong>
 
-                  show(
-                    preview
-                  );
-                }
+                  ${escapeHTML(
+                    petName(
+                      state.selectedPet
+                    )
+                  )}
+
+                  ·
+
+                  ${formatValue(
+                    petValue(
+                      state.selectedPet
+                    )
+                  )}
+                `;
+
+                show(preview);
               }
-            );
-          }
-        );
+            }
+          );
+        });
     } catch (error) {
       console.error(
         "Inventory:",
@@ -1974,13 +1710,12 @@
         button.addEventListener(
           "click",
           () => {
-            $$(".side-btn")
-              .forEach(
-                (item) =>
-                  item.classList.remove(
-                    "selected"
-                  )
-              );
+            $$(".side-btn").forEach(
+              (item) =>
+                item.classList.remove(
+                  "selected"
+                )
+            );
 
             button.classList.add(
               "selected"
@@ -2020,20 +1755,16 @@
       await api(
         "/coinflips",
         {
-          method:
-            "POST",
+          method: "POST",
 
-          body:
-            JSON.stringify({
-              itemId:
-                state.selectedPet
-                  .id ||
-                state.selectedPet
-                  .itemId,
+          body: JSON.stringify({
+            itemId:
+              state.selectedPet.id ||
+              state.selectedPet.itemId,
 
-              side:
-                state.selectedSide
-            })
+            side:
+              state.selectedSide
+          })
         }
       );
 
@@ -2072,23 +1803,19 @@
         );
 
       const messages =
-        data?.messages ||
-        [];
+        Array.isArray(
+          data?.messages
+        )
+          ? data.messages
+          : Array.isArray(data)
+            ? data
+            : [];
 
-      renderChat(
-        messages
-      );
-
-      /*
-       * Prefer the proper presence endpoint.
-       * Fall back to /chat/online if needed.
-       */
+      renderChat(messages);
 
       try {
         const presence =
-          await api(
-            "/presence"
-          );
+          await api("/presence");
 
         const online =
           Number(
@@ -2098,14 +1825,9 @@
           );
 
         if (
-          Number.isFinite(
-            online
-          )
+          Number.isFinite(online)
         ) {
-          setOnlineCount(
-            online
-          );
-
+          setOnlineCount(online);
           return;
         }
       } catch {}
@@ -2118,15 +1840,13 @@
 
         setOnlineCount(
           Number(
-            online?.online ||
-            online?.count ||
+            online?.online ??
+            online?.count ??
             0
           )
         );
       } catch {
-        setOnlineCount(
-          0
-        );
+        setOnlineCount(0);
       }
     } catch (error) {
       console.error(
@@ -2134,23 +1854,15 @@
         error
       );
 
-      renderChat(
-        []
-      );
+      renderChat([]);
 
-      setOnlineCount(
-        0
-      );
+      setOnlineCount(0);
     }
   }
 
-  function renderChat(
-    messages
-  ) {
+  function renderChat(messages) {
     const container =
-      el(
-        "panelChatMessages"
-      );
+      el("panelChatMessages");
 
     if (!container) {
       return;
@@ -2165,81 +1877,43 @@
 
     container.innerHTML =
       messages
-        .map(
-          (message) => {
-            const username =
-              message.username ||
-              "User";
+        .map((message) => {
+          const username =
+            message.username ||
+            "User";
 
-            const avatar =
-              message.avatar ||
-              robloxAvatar(
-                message.robloxId ||
-                message.userId
-              );
+          const avatar =
+            message.avatar ||
+            robloxAvatar(
+              message.robloxId ||
+              message.userId
+            );
 
-            const text =
-              message.message ||
-              "";
+          const text =
+            message.message ||
+            "";
 
-            const pinned =
-              Boolean(
-                message.pinned
-              ) ||
-              message.type ===
-                "announcement";
+          const pinned =
+            Boolean(message.pinned) ||
+            message.type ===
+              "announcement";
 
-            if (pinned) {
-              return `
-                <div class="chat-message chat-announcement">
+          if (pinned) {
+            return `
+              <div class="chat-message chat-announcement">
 
-                  <div>
+                <div>
 
-                    <div class="chat-announcement-pin">
-                      📌 PINNED
-                    </div>
-
-                    <div class="chat-username">
-                      ${escapeHTML(
-                        username
-                      )}
-                    </div>
-
-                    <div class="chat-text">
-                      ${escapeHTML(
-                        text
-                      )}
-                    </div>
-
+                  <div class="chat-announcement-pin">
+                    📌 PINNED
                   </div>
 
-                </div>
-              `;
-            }
-
-            return `
-              <div class="chat-message">
-
-                <img
-                  class="chat-avatar"
-                  src="${escapeHTML(
-                    avatar
-                  )}"
-                  alt=""
-                >
-
-                <div class="chat-content">
-
                   <div class="chat-username">
-                    ${escapeHTML(
-                      username
-                    )}
+                    ${escapeHTML(username)}
                   </div>
 
                   <div class="chat-text">
-                    ${escapeHTML(
-                      text
-                    )}
+                    ${escapeHTML(text)}
                   </div>
 
                 </div>
@@ -2247,89 +1921,72 @@
               </div>
             `;
           }
-        )
+
+          return `
+            <div class="chat-message">
+
+              <img
+                class="chat-avatar"
+                src="${escapeHTML(avatar)}"
+                alt=""
+              >
+
+              <div class="chat-content">
+
+                <div class="chat-username">
+                  ${escapeHTML(username)}
+                </div>
+
+                <div class="chat-text">
+                  ${escapeHTML(text)}
+                </div>
+
+              </div>
+
+            </div>
+          `;
+        })
         .join("");
 
-    fixLogoImages(
-      container
-    );
+    fixLogoImages(container);
 
     container.scrollTop =
       container.scrollHeight;
   }
 
-  function setOnlineCount(
-    count
-  ) {
+  function setOnlineCount(count) {
     const safeCount =
       Number(count);
 
     const finalCount =
-      Number.isFinite(
-        safeCount
-      )
-        ? Math.max(
-            0,
-            safeCount
-          )
+      Number.isFinite(safeCount)
+        ? Math.max(0, safeCount)
         : 0;
 
     state.onlineCount =
       finalCount;
 
-    const node =
-      el(
-        "panelOnlineCount"
-      );
-
-    if (node) {
-      node.textContent =
-        formatNumber(
-          finalCount
-        );
-    }
-
-    const coinflipOnline =
-      el(
-        "coinflipOnline"
-      );
-
-    if (coinflipOnline) {
-      coinflipOnline.textContent =
-        formatNumber(
-          finalCount
-        );
-    }
-
-    /*
-     * Support other common online counters
-     * if they exist in the current HTML.
-     */
-
-    [
+    const ids = [
+      "panelOnlineCount",
+      "coinflipOnline",
       "onlineCount",
       "onlineUsers",
       "chatOnlineCount"
-    ].forEach(
-      (id) => {
-        const node =
-          el(id);
+    ];
 
-        if (node) {
-          node.textContent =
-            formatNumber(
-              finalCount
-            );
-        }
+    ids.forEach((id) => {
+      const node = el(id);
+
+      if (node) {
+        node.textContent =
+          formatNumber(finalCount);
       }
-    );
+    });
   }
 
   async function sendChatMessage() {
     const input =
-      el(
-        "panelChatInput"
-      );
+      el("panelChatInput");
 
     if (!input) {
       return;
@@ -2352,26 +2009,21 @@
       return;
     }
 
-    input.disabled =
-      true;
+    input.disabled = true;
 
     try {
       await api(
         "/chat/messages",
         {
-          method:
-            "POST",
+          method: "POST",
 
-          body:
-            JSON.stringify({
-              message:
-                text
-            })
+          body: JSON.stringify({
+            message: text
+          })
         }
       );
 
-      input.value =
-        "";
+      input.value = "";
 
       await loadChat();
     } catch (error) {
@@ -2380,24 +2032,19 @@
         "Could not send message."
       );
     } finally {
-      input.disabled =
-        false;
-
+      input.disabled = false;
       input.focus();
     }
   }
 
   function openChat() {
-    state.chatOpen =
-      true;
+    state.chatOpen = true;
 
     document.body.classList.add(
       "chat-open"
     );
 
-    el(
-      "topChatButton"
-    )?.classList.add(
+    el("topChatButton")?.classList.add(
       "active"
     );
 
@@ -2405,24 +2052,19 @@
   }
 
   function closeChat() {
-    state.chatOpen =
-      false;
+    state.chatOpen = false;
 
     document.body.classList.remove(
       "chat-open"
     );
 
-    el(
-      "topChatButton"
-    )?.classList.remove(
+    el("topChatButton")?.classList.remove(
       "active"
     );
   }
 
   function toggleChat() {
-    if (
-      state.chatOpen
-    ) {
+    if (state.chatOpen) {
       closeChat();
     } else {
       openChat();
@@ -2435,9 +2077,7 @@
 
   function renderProfile() {
     const container =
-      el(
-        "profileContent"
-      );
+      el("profileContent");
 
     if (!container) {
       return;
@@ -2480,9 +2120,7 @@
         <div class="profile-user">
 
           <img
-            src="${escapeHTML(
-              avatar
-            )}"
+            src="${escapeHTML(avatar)}"
             alt=""
           >
 
@@ -2581,9 +2219,7 @@
       </div>
     `;
 
-    fixLogoImages(
-      container
-    );
+    fixLogoImages(container);
   }
 
   /* =====================================================
@@ -2623,9 +2259,7 @@
       ?.addEventListener(
         "click",
         () =>
-          openPage(
-            "profile"
-          )
+          openPage("profile")
       );
 
     el("logoutBtn")
@@ -2669,7 +2303,6 @@
       );
 
     setupSideButtons();
-
     setupValueSearch();
 
     document.addEventListener(
@@ -2694,16 +2327,13 @@
       "keydown",
       (event) => {
         if (
-          event.key !==
-          "Escape"
+          event.key !== "Escape"
         ) {
           return;
         }
 
         closeLogin();
-
         closeCreateCoinflip();
-
         closeChat();
       }
     );
@@ -2715,34 +2345,21 @@
 
   function finishLoadingScreen() {
     const screen =
-      el(
-        "loadingScreen"
-      );
+      el("loadingScreen");
 
     if (!screen) {
       return;
     }
 
-    /*
-     * Short branded loading screen.
-     * About 700ms before the site opens.
-     */
+    setTimeout(() => {
+      screen.classList.add(
+        "is-hidden"
+      );
 
-    setTimeout(
-      () => {
-        screen.classList.add(
-          "is-hidden"
-        );
-
-        setTimeout(
-          () => {
-            screen.remove();
-          },
-          260
-        );
-      },
-      700
-    );
+      setTimeout(() => {
+        screen.remove();
+      }, 260);
+    }, 700);
   }
 
   /* =====================================================
@@ -2755,14 +2372,8 @@
     }
 
     try {
-      /*
-       * /account confirms the saved session
-       * is still usable.
-       */
       const data =
-        await api(
-          "/account"
-        );
+        await api("/account");
 
       if (data?.user) {
         state.user =
@@ -2780,8 +2391,7 @@
     } catch (error) {
       const message =
         String(
-          error.message ||
-            ""
+          error.message || ""
         ).toLowerCase();
 
       const authError =
@@ -2796,13 +2406,15 @@
         ) ||
         message.includes(
           "not authenticated"
+        ) ||
+        message.includes(
+          "authentication required"
         );
 
       if (authError) {
         clearToken();
 
-        state.user =
-          null;
+        state.user = null;
 
         updateAccountUI();
       }
@@ -2814,9 +2426,7 @@
   ===================================================== */
 
   function setupImageObserver() {
-    if (
-      !window.MutationObserver
-    ) {
+    if (!window.MutationObserver) {
       return;
     }
 
@@ -2828,24 +2438,20 @@
               mutation.addedNodes.forEach(
                 (node) => {
                   if (
-                    node.nodeType !==
-                    1
+                    node.nodeType !== 1
                   ) {
                     return;
                   }
 
                   if (
-                    node.tagName ===
-                    "IMG"
+                    node.tagName === "IMG"
                   ) {
                     fixLogoImages(
                       node.parentElement ||
-                        document
+                      document
                     );
                   } else {
-                    fixLogoImages(
-                      node
-                    );
+                    fixLogoImages(node);
                   }
                 }
               );
@@ -2857,11 +2463,8 @@
     observer.observe(
       document.body,
       {
-        childList:
-          true,
-
-        subtree:
-          true
+        childList: true,
+        subtree: true
       }
     );
   }
@@ -2871,14 +2474,8 @@
   ===================================================== */
 
   async function init() {
-    /*
-     * First restore persistent authentication.
-     */
     restoreToken();
 
-    /*
-     * Install visual fixes immediately.
-     */
     installBackground();
 
     forceMainLogo();
@@ -2891,18 +2488,8 @@
 
     setupEvents();
 
-    /*
-     * Restore the logged-in account.
-     *
-     * IMPORTANT:
-     * We do this BEFORE loading the rest of
-     * the authenticated UI.
-     */
     await loadAccount();
 
-    /*
-     * Load public data regardless of login state.
-     */
     await Promise.allSettled([
       loadValues(),
       loadCoinflips(),
@@ -2911,10 +2498,7 @@
 
     const initial =
       location.hash
-        .replace(
-          "#",
-          ""
-        ) ||
+        .replace("#", "") ||
       "coinflip";
 
     openPage(
@@ -2923,40 +2507,23 @@
         : "coinflip"
     );
 
-    /*
-     * Refresh public information.
-     */
-    setInterval(
-      () => {
-        if (
-          state.page ===
-          "coinflip"
-        ) {
-          loadCoinflips();
-        }
+    setInterval(() => {
+      if (
+        state.page === "coinflip"
+      ) {
+        loadCoinflips();
+      }
 
-        if (
-          state.chatOpen
-        ) {
-          loadChat();
-        }
-      },
-      5000
-    );
+      if (state.chatOpen) {
+        loadChat();
+      }
+    }, 5000);
 
-    /*
-     * Keep the saved login session
-     * synchronized.
-     */
     setInterval(
       heartbeat,
       30000
     );
 
-    /*
-     * If another script changes the DOM,
-     * make sure the Roblox logo remains correct.
-     */
     setTimeout(
       forceMainLogo,
       100
