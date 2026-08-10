@@ -199,6 +199,12 @@ async function cmdCommands(chatId) {
 /cancelcf &lt;flipId&gt;
 /joincf &lt;flipId&gt; &lt;robloxId&gt;
 
+<b>Chat</b>
+/chat
+/announce &lt;message&gt;
+/delmsg &lt;messageId&gt;
+/clearchat
+
 <b>System</b>
 /status
 /commands
@@ -486,6 +492,73 @@ Winner: <b>${escapeHtml(result.winner.username)}</b>`
   );
 }
 
+async function cmdAnnounce(chatId, args) {
+  const message = args.join(" ").trim();
+
+  if (!message) {
+    return sendMessage(
+      chatId,
+      "Usage: <code>/announce Your message</code>"
+    );
+  }
+
+  await adminApi("/admin/announce", { message });
+
+  await sendMessage(
+    chatId,
+    `📢 Announcement posted to site chat.`
+  );
+}
+
+async function cmdDeleteMessage(chatId, args) {
+  if (!args[0]) {
+    return sendMessage(
+      chatId,
+      "Usage: <code>/delmsg MessageId</code>\n\nMessage IDs are shown by /chat."
+    );
+  }
+
+  const result = await adminApi("/admin/chat/delete", {
+    messageId: args[0]
+  });
+
+  if (!result.deleted) {
+    return sendMessage(chatId, "❌ No message with that ID.");
+  }
+
+  await sendMessage(chatId, "✅ Message deleted.");
+}
+
+async function cmdClearChat(chatId) {
+  const result = await adminApi("/admin/chat/clear", {});
+
+  await sendMessage(
+    chatId,
+    `🧹 Cleared <b>${result.cleared}</b> chat messages.`
+  );
+}
+
+async function cmdChat(chatId) {
+  const data = await api("/chat/messages");
+  const messages = (data.messages || []).slice(-15);
+
+  if (!messages.length) {
+    return sendMessage(chatId, "Chat is empty.");
+  }
+
+  const lines = messages.map((message) => {
+    return `<b>${escapeHtml(message.username)}</b>: ${escapeHtml(message.message)}
+ID: <code>${escapeHtml(message.id)}</code>`;
+  });
+
+  await sendMessage(
+    chatId,
+    `<b>LATEST CHAT</b>
+
+${lines.join("\n\n")}`
+  );
+}
+
 async function cmdStatus(chatId) {
   const data = await api("/status");
 
@@ -563,6 +636,19 @@ async function handleMessage(message) {
       case "/joincf":
       case "/join_coinflip":
         return cmdJoinCoinflip(chatId, args);
+
+      case "/chat":
+        return cmdChat(chatId);
+
+      case "/announce":
+        return cmdAnnounce(chatId, args);
+
+      case "/delmsg":
+      case "/deletemsg":
+        return cmdDeleteMessage(chatId, args);
+
+      case "/clearchat":
+        return cmdClearChat(chatId);
 
       case "/status":
         return cmdStatus(chatId);
@@ -650,6 +736,10 @@ async function startBot() {
         { command: "coinflips", description: "View active coinflips" },
         { command: "joincf", description: "Join a coinflip" },
         { command: "cancelcf", description: "Cancel a coinflip" },
+        { command: "chat", description: "Show latest site chat" },
+        { command: "announce", description: "Post an announcement" },
+        { command: "delmsg", description: "Delete a chat message" },
+        { command: "clearchat", description: "Clear site chat" },
         { command: "status", description: "Show server status" }
       ]
     });
