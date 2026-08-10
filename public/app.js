@@ -1,21 +1,22 @@
 (() => {
   "use strict";
 
- /* =====================================================
-CONFIG
-===================================================== */
+  /* =====================================================
+     CONFIG
+  ===================================================== */
 
-const API_BASE = "https://admflip-beta.onrender.com";
+  const API_BASE = "https://admflip-beta.onrender.com";
 
-const BACKEND = (
-  new URLSearchParams(location.search).get("backend") ||
-  (window.ADMFLIP_CONFIG && window.ADMFLIP_CONFIG.backend) ||
-  API_BASE
-).replace(/\/+$/, "");
+  const BACKEND = (
+    new URLSearchParams(location.search).get("backend") ||
+    (window.ADMFLIP_CONFIG && window.ADMFLIP_CONFIG.backend) ||
+    API_BASE
+  ).replace(/\/+$/, "");
 
-window.ADMFLIP = {
-  backend: BACKEND
-};
+  window.ADMFLIP = {
+    backend: BACKEND
+  };
+
   /* =====================================================
      STATE
   ===================================================== */
@@ -39,11 +40,6 @@ window.ADMFLIP = {
 
     chatOpen: false,
 
-    /*
-      IMPORTANT:
-      Read the saved token immediately when the app starts.
-      This survives a browser refresh.
-    */
     token: localStorage.getItem("admflip_token") || null
   };
 
@@ -72,14 +68,14 @@ window.ADMFLIP = {
     }
   }
 
- function escapeHTML(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+  function escapeHTML(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
 
   function formatNumber(value) {
     const n = Number(value);
@@ -195,6 +191,69 @@ window.ADMFLIP = {
     );
   }
 
+  /*
+    Safely get a coinflip's value.
+    Different backend versions can use different names.
+  */
+  function coinflipValue(flip) {
+    if (!flip || typeof flip !== "object") {
+      return 0;
+    }
+
+    return (
+      Number(
+        flip.petValue ??
+        flip.value ??
+        flip.itemValue ??
+        flip.normalValue ??
+        flip.worth ??
+        flip.price ??
+        0
+      ) || 0
+    );
+  }
+
+  /*
+    Safely get coinflip pet name.
+  */
+  function coinflipPetName(flip) {
+    return (
+      flip?.petName ||
+      flip?.itemName ||
+      flip?.name ||
+      flip?.pet?.name ||
+      flip?.item?.name ||
+      "Pet"
+    );
+  }
+
+  /*
+    Safely get coinflip image.
+  */
+  function coinflipPetImage(flip) {
+    if (!flip) {
+      return "/logo.png";
+    }
+
+    if (
+      flip.image ||
+      flip.imageUrl ||
+      flip.icon ||
+      flip.thumbnail
+    ) {
+      return (
+        flip.image ||
+        flip.imageUrl ||
+        flip.icon ||
+        flip.thumbnail
+      );
+    }
+
+    return petImage({
+      name: coinflipPetName(flip)
+    });
+  }
+
   /* =====================================================
      TOAST
   ===================================================== */
@@ -227,15 +286,13 @@ window.ADMFLIP = {
         ? String(path)
         : "/" + String(path);
 
-    /*
-      Always use the latest token from state.
-      If the page was refreshed, state.token was loaded
-      from localStorage at the top of this file.
-    */
     const savedToken =
       localStorage.getItem("admflip_token");
 
-    if (savedToken && savedToken !== state.token) {
+    if (
+      savedToken &&
+      savedToken !== state.token
+    ) {
       state.token = savedToken;
     }
 
@@ -308,11 +365,6 @@ window.ADMFLIP = {
           `Request failed (${response.status})`
         );
 
-      /*
-        Keep the HTTP status available so loadAccount()
-        can distinguish a real authentication failure
-        from a temporary backend problem.
-      */
       error.status =
         response.status;
 
@@ -357,7 +409,10 @@ window.ADMFLIP = {
 
     $$(".nav-item").forEach(
       (button) => {
-        if (button.id === "topChatButton") {
+        if (
+          button.id ===
+          "topChatButton"
+        ) {
           return;
         }
 
@@ -417,6 +472,90 @@ window.ADMFLIP = {
         openPage("coinflip");
       }
     );
+  }
+
+  /* =====================================================
+     HEADER CLEANUP
+  ===================================================== */
+
+  /*
+    The HTML should contain the actual header buttons.
+    This function ONLY removes accidental duplicates
+    that may have been inserted by older versions of
+    the script.
+
+    It does NOT create new header buttons.
+  */
+
+  function cleanupDuplicateHeaderElements() {
+    const logoSelectors = [
+      ".site-logo",
+      ".header-logo",
+      ".brand-logo"
+    ];
+
+    logoSelectors.forEach(
+      (selector) => {
+        const nodes = $$(selector);
+
+        if (nodes.length > 1) {
+          nodes
+            .slice(1)
+            .forEach(
+              (node) =>
+                node.remove()
+            );
+        }
+      }
+    );
+
+    const chatButtons =
+      $$("#topChatButton");
+
+    if (chatButtons.length > 1) {
+      chatButtons
+        .slice(1)
+        .forEach(
+          (node) =>
+            node.remove()
+        );
+    }
+
+    const loginButtons =
+      $$("#loginBtn");
+
+    if (loginButtons.length > 1) {
+      loginButtons
+        .slice(1)
+        .forEach(
+          (node) =>
+            node.remove()
+        );
+    }
+
+    const profileButtons =
+      $$("#profileBtn");
+
+    if (profileButtons.length > 1) {
+      profileButtons
+        .slice(1)
+        .forEach(
+          (node) =>
+            node.remove()
+        );
+    }
+
+    const accountBoxes =
+      $$("#accountBox");
+
+    if (accountBoxes.length > 1) {
+      accountBoxes
+        .slice(1)
+        .forEach(
+          (node) =>
+            node.remove()
+        );
+    }
   }
 
   /* =====================================================
@@ -784,11 +923,6 @@ window.ADMFLIP = {
         );
       }
 
-      /*
-        IMPORTANT:
-        Save BOTH the user and token immediately.
-      */
-
       if (result.token) {
         state.token =
           result.token;
@@ -799,10 +933,6 @@ window.ADMFLIP = {
         );
       }
 
-      /*
-        Some backends return result.user.
-        If yours does, use it immediately.
-      */
       if (result.user) {
         state.user =
           result.user;
@@ -815,18 +945,8 @@ window.ADMFLIP = {
             : [];
       }
 
-      /*
-        Now ask the backend for the complete
-        authenticated account.
-      */
-      const account =
-        await loadAccount();
+      await loadAccount();
 
-      /*
-        If /account did not return the user but
-        /check did, don't destroy the successful
-        verification.
-      */
       if (!state.user && result.user) {
         state.user =
           result.user;
@@ -841,10 +961,6 @@ window.ADMFLIP = {
         updateAccountUI();
       }
 
-      /*
-        Make sure the account UI changes NOW,
-        without requiring a refresh.
-      */
       updateAccountUI();
 
       renderProfile();
@@ -889,15 +1005,9 @@ window.ADMFLIP = {
 
   /* =====================================================
      ACCOUNT
-     ===================================================== */
+  ===================================================== */
 
   async function loadAccount() {
-    /*
-      IMPORTANT:
-      Every page refresh recreates the JavaScript state.
-
-      Therefore read the token from localStorage AGAIN.
-    */
     const savedToken =
       localStorage.getItem(
         "admflip_token"
@@ -908,9 +1018,6 @@ window.ADMFLIP = {
         savedToken;
     }
 
-    /*
-      No token means no logged-in account.
-    */
     if (!state.token) {
       state.user = null;
 
@@ -930,9 +1037,6 @@ window.ADMFLIP = {
       const account =
         data?.user;
 
-      /*
-        Backend did not return a user.
-      */
       if (!account) {
         state.user = null;
 
@@ -943,9 +1047,6 @@ window.ADMFLIP = {
         return null;
       }
 
-      /*
-        RESTORE THE USER AFTER REFRESH.
-      */
       state.user =
         account;
 
@@ -956,9 +1057,6 @@ window.ADMFLIP = {
           ? account.inventory
           : [];
 
-      /*
-        Keep the token stored.
-      */
       localStorage.setItem(
         "admflip_token",
         state.token
@@ -976,14 +1074,6 @@ window.ADMFLIP = {
         error
       );
 
-      /*
-        IMPORTANT:
-        Do NOT delete the token because of a
-        network/backend error.
-
-        Only delete it for a genuine authentication
-        failure.
-      */
       const status =
         Number(error?.status || 0);
 
@@ -1047,12 +1137,6 @@ window.ADMFLIP = {
       return;
     }
 
-    /*
-      LOGGED IN
-      ----------------
-      Hide Roblox Login
-      Show Profile + Logout
-    */
     if (state.user) {
       hide(login);
 
@@ -1078,16 +1162,17 @@ window.ADMFLIP = {
           robloxAvatar(
             state.user.id ||
             state.user.userId
-          ) ||
-          "/logo.png";
+          );
+
+        avatar.onerror = () => {
+          avatar.src =
+            "/logo.png";
+        };
       }
 
       return;
     }
 
-    /*
-      LOGGED OUT
-    */
     show(login);
 
     hide(account);
@@ -1108,9 +1193,6 @@ window.ADMFLIP = {
       );
     }
 
-    /*
-      Clear EVERYTHING locally.
-    */
     state.user = null;
 
     state.inventory = [];
@@ -1307,7 +1389,9 @@ window.ADMFLIP = {
         );
 
       const flips =
-        data?.coinflips || [];
+        Array.isArray(data)
+          ? data
+          : data?.coinflips || [];
 
       state.coinflips =
         flips;
@@ -1326,15 +1410,20 @@ window.ADMFLIP = {
           );
       }
 
+      /*
+        IMPORTANT:
+        Calculate total using the same
+        normalized value helper used by
+        the cards.
+      */
       const total =
         flips.reduce(
-          (sum, flip) =>
-            sum +
-            (
-              Number(
-                flip.petValue
-              ) || 0
-            ),
+          (sum, flip) => {
+            return (
+              sum +
+              coinflipValue(flip)
+            );
+          },
           0
         );
 
@@ -1383,31 +1472,60 @@ window.ADMFLIP = {
           (flip) => {
             const username =
               flip.username ||
+              flip.user?.username ||
               "User";
 
             const avatar =
               flip.avatar ||
-              "/logo.png";
+              flip.avatarUrl ||
+              flip.user?.avatar ||
+              robloxAvatar(
+                flip.userId ||
+                flip.user?.id
+              );
 
             const name =
-              flip.petName ||
-              "Pet";
+              coinflipPetName(
+                flip
+              );
 
             const value =
-              flip.petValue ||
-              0;
+              coinflipValue(
+                flip
+              );
 
             const image =
-              flip.image ||
-              petImage({
-                name
-              });
+              coinflipPetImage(
+                flip
+              );
+
+            const side =
+              String(
+                flip.side ||
+                "heads"
+              ).toLowerCase();
+
+            /*
+              Use a consistent class and
+              icon for Heads/Tails.
+            */
+            const sideLabel =
+              side === "tails"
+                ? "T"
+                : "H";
+
+            const sideClass =
+              side === "tails"
+                ? "tails"
+                : "heads";
 
             return `
               <article
                 class="coinflip-card"
                 data-id="${escapeHTML(
-                  flip.id
+                  flip.id ||
+                  flip._id ||
+                  ""
                 )}"
               >
 
@@ -1439,7 +1557,7 @@ window.ADMFLIP = {
 
                   <img
                     src="${escapeHTML(image)}"
-                    alt=""
+                    alt="${escapeHTML(name)}"
                     onerror="this.src='/logo.png'"
                   >
 
@@ -1457,11 +1575,36 @@ window.ADMFLIP = {
 
                 </div>
 
-                <div class="coinflip-side">
-                  ${escapeHTML(
-                    flip.side ||
-                    "heads"
-                  )}
+                <div
+                  class="coinflip-value"
+                  title="Coinflip value"
+                >
+                  <span class="value-icon">
+                    $
+                  </span>
+
+                  <strong>
+                    ${formatValue(value)}
+                  </strong>
+                </div>
+
+                <div
+                  class="coinflip-side ${sideClass}"
+                  title="${escapeHTML(
+                    side
+                  )}"
+                >
+                  <span class="side-letter">
+                    ${sideLabel}
+                  </span>
+
+                  <span class="side-name">
+                    ${escapeHTML(
+                      side === "tails"
+                        ? "Tails"
+                        : "Heads"
+                    )}
+                  </span>
                 </div>
 
               </article>
@@ -1533,9 +1676,6 @@ window.ADMFLIP = {
       `<div class="loading">Loading inventory...</div>`;
 
     try {
-      /*
-        Make sure the account is still restored.
-      */
       const account =
         await loadAccount();
 
@@ -1847,7 +1987,9 @@ window.ADMFLIP = {
 
             const avatar =
               message.avatar ||
-              "/logo.png";
+              robloxAvatar(
+                message.userId
+              );
 
             const text =
               message.message ||
@@ -2085,9 +2227,11 @@ window.ADMFLIP = {
       );
 
     const inventory =
-      state.user.inventory ||
-      state.inventory ||
-      [];
+      Array.isArray(
+        state.user.inventory
+      )
+        ? state.user.inventory
+        : state.inventory || [];
 
     container.innerHTML = `
       <div class="profile-card">
@@ -2284,9 +2428,6 @@ window.ADMFLIP = {
 
     setupValueSearch();
 
-    /*
-      Clicking outside a modal closes it.
-    */
     document.addEventListener(
       "click",
       (event) => {
@@ -2305,9 +2446,6 @@ window.ADMFLIP = {
       }
     );
 
-    /*
-      ESC closes open panels/modals.
-    */
     document.addEventListener(
       "keydown",
       (event) => {
@@ -2363,24 +2501,23 @@ window.ADMFLIP = {
   async function init() {
     finishLoadingScreen();
 
+    /*
+      Remove duplicate elements left by
+      previous versions without creating
+      additional header elements.
+    */
+    cleanupDuplicateHeaderElements();
+
     setupNavigation();
 
     setupEvents();
 
     /*
-      VERY IMPORTANT:
-
-      Restore the Roblox account BEFORE the rest
-      of the website finishes loading.
-
-      This is what makes the Profile / Logout UI
-      survive a page refresh.
+      Restore account before the rest of
+      the website loads.
     */
     await loadAccount();
 
-    /*
-      Load the rest of the website.
-    */
     await Promise.allSettled([
       loadValues(),
       loadCoinflips(),
@@ -2400,9 +2537,8 @@ window.ADMFLIP = {
     );
 
     /*
-      Refresh live data.
-
-      This DOES NOT touch the login state.
+      Refresh live data without touching
+      authentication state.
     */
     setInterval(
       () => {
