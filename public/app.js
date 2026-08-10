@@ -25,8 +25,21 @@
     selectedSide: null,
     coinflips: [],
     chatOpen: false,
-    token: localStorage.getItem("admflip_token") || null
+
+    token:
+      localStorage.getItem("admflip_token") || null,
+
+    refreshToken:
+      localStorage.getItem(
+        "admflip_refresh_token"
+      ) || null
   };
+
+  /*
+   * Prevent multiple simultaneous requests
+   * from trying to refresh the same token.
+   */
+  let refreshPromise = null;
 
   /* =====================================================
      HELPERS
@@ -198,41 +211,247 @@
   }
 
   /* =====================================================
+     AUTH TOKEN HELPERS
+  ===================================================== */
+
+  function saveTokens(data) {
+    if (!data) {
+      return;
+    }
+
+    const accessToken =
+      data.accessToken ||
+      data.token ||
+      null;
+
+    const refreshToken =
+      data.refreshToken ||
+      null;
+
+    if (accessToken) {
+      state.token = accessToken;
+
+      localStorage.setItem(
+        "admflip_token",
+        accessToken
+      );
+    }
+
+    if (refreshToken) {
+      state.refreshToken =
+        refreshToken;
+
+      localStorage.setItem(
+        "admflip_refresh_token",
+        refreshToken
+      );
+    }
+  }
+
+  function clearAuth() {
+    state.user = null;
+    state.inventory = [];
+    state.verification = null;
+
+    state.token = null;
+    state.refreshToken = null;
+
+    localStorage.removeItem(
+      "admflip_token"
+    );
+
+    localStorage.removeItem(
+      "admflip_refresh_token"
+    );
+
+    updateAccountUI();
+    renderProfile();
+  }
+
+  /*
+   * Refresh the access token.
+   *
+   * Important:
+   * - 401/403 from /refresh means the refresh token
+   *   itself is invalid/expired -> clear auth.
+   * - 404/network/5xx does NOT immediately log
+   *   the user out.
+   */
+  async function refreshAccessToken() {
+    const refreshToken =
+      state.refreshToken ||
+      localStorage.getItem(
+        "admflip_refresh_token"
+      );
+
+    if (!refreshToken) {
+      return false;
+    }
+
+    if (refreshPromise) {
+      return refreshPromise;
+    }
+
+    refreshPromise = (async () => {
+      try {
+        const response =
+          await fetch(
+            BACKEND + "/refresh",
+            {
+              method: "POST",
+              credentials: "include",
+              cache: "no-store",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body: JSON.stringify({
+                refreshToken
+              })
+            }
+          );
+
+        const text =
+          await response.text();
+
+        let data = null;
+
+        try {
+          data = text
+            ? JSON.parse(text)
+            : null;
+        } catch {
+          data = null;
+        }
+
+        /*
+         * Some backends return the token directly
+         * without wrapping it in success:true.
+         *
+         * Accept both formats.
+         */
+        const hasToken =
+          Boolean(
+            data?.accessToken ||
+            data?.token
+          );
+
+        if (
+          response.ok &&
+          (
+            data?.success === true ||
+            hasToken
+          )
+        ) {
+          saveTokens(data);
+
+          if (data.user) {
+            state.user =
+              data.user;
+
+            state.inventory =
+              Array.isArray(
+                data.user.inventory
+              )
+                ? data.user.inventory
+                : [];
+
+            updateAccountUI();
+          }
+
+          return true;
+        }
+
+        /*
+         * Refresh token definitely invalid.
+         */
+        if (
+          response.status === 401 ||
+          response.status === 403
+        ) {
+          clearAuth();
+          return false;
+        }
+
+        /*
+         * 404 / 500 / 502 / network problem:
+         * don't silently log the user out.
+         */
+        console.warn(
+          "ADMFLIP refresh endpoint unavailable:",
+          response.status
+        );
+
+        return false;
+      } catch (error) {
+        console.error(
+          "ADMFLIP token refresh failed:",
+          error
+        );
+
+        /*
+         * Network failure must NOT log the user out.
+         */
+        return false;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+
+    return refreshPromise;
+  }
+
+  /* =====================================================
      API
   ===================================================== */
 
-  async function api(path, options = {}) {
+  async function api(
+    path,
+    options = {},
+    retryAuth = true
+  ) {
     const cleanPath =
       String(path || "").startsWith("/")
         ? String(path)
         : "/" + String(path);
 
+    const requestOptions = {
+      credentials: "include",
+      cache: "no-store",
+      ...options
+    };
+
     let response;
 
     try {
-      response = await fetch(
-        BACKEND + cleanPath,
-        {
-          credentials: "include",
-          cache: "no-store",
-          ...options,
-          headers: {
-            ...(options.body
-              ? {
-                  "Content-Type":
-                    "application/json"
-                }
-              : {}),
-            ...(state.token
-              ? {
-                  Authorization:
-                    "Bearer " + state.token
-                }
-              : {}),
-            ...(options.headers || {})
+      response =
+        await fetch(
+          BACKEND + cleanPath,
+          {
+            ...requestOptions,
+
+            headers: {
+              ...(options.body
+                ? {
+                    "Content-Type":
+                      "application/json"
+                  }
+                : {}),
+
+              ...(state.token
+                ? {
+                    Authorization:
+                      "Bearer " +
+                      state.token
+                  }
+                : {}),
+
+              ...(options.headers || {})
+            }
           }
-        }
-      );
+        );
     } catch (error) {
       console.error(
         "ADMFLIP backend:",
@@ -242,6 +461,32 @@
       throw new Error(
         "Cannot reach the ADMFLIP backend."
       );
+    }
+
+    /*
+     * ACCESS TOKEN EXPIRED
+     *
+     * Try refresh once, then retry
+     * the original request once.
+     */
+    if (
+      retryAuth &&
+      (
+        response.status === 401 ||
+        response.status === 403
+      ) &&
+      state.refreshToken
+    ) {
+      const refreshed =
+        await refreshAccessToken();
+
+      if (refreshed) {
+        return api(
+          cleanPath,
+          options,
+          false
+        );
+      }
     }
 
     const text =
@@ -265,10 +510,18 @@
             data.error
           : null;
 
-      throw new Error(
-        message ||
-          `Request failed (${response.status})`
-      );
+      const error =
+        new Error(
+          message ||
+            `Request failed (${response.status})`
+        );
+
+      error.status =
+        response.status;
+
+      error.data = data;
+
+      throw error;
     }
 
     return data;
@@ -444,7 +697,9 @@
   }
 
   function closeLogin() {
-    hide(el("loginModal"));
+    hide(
+      el("loginModal")
+    );
   }
 
   function makeVerificationPhrase() {
@@ -550,7 +805,9 @@
         username:
           robloxUser.username ||
           username,
+
         robloxUser,
+
         phrase
       };
 
@@ -562,7 +819,9 @@
         phrase
       );
 
-      show(el("verify"));
+      show(
+        el("verify")
+      );
 
       if (message) {
         message.textContent =
@@ -611,11 +870,15 @@
           alt="${escapeHTML(username)}"
           onerror="this.src='/logo.png'"
         >
+
         <div>
           <strong>${escapeHTML(
             username
           )}</strong>
-          <span>Roblox account found</span>
+
+          <span>
+            Roblox account found
+          </span>
         </div>
       </div>
     `;
@@ -684,17 +947,22 @@
 
     try {
       const result =
-        await api("/check", {
-          method: "POST",
-          body: JSON.stringify({
-            username:
-              state.verification
-                .username,
-            phrase:
-              state.verification
-                .phrase
-          })
-        });
+        await api(
+          "/check",
+          {
+            method: "POST",
+
+            body: JSON.stringify({
+              username:
+                state.verification
+                  .username,
+
+              phrase:
+                state.verification
+                  .phrase
+            })
+          }
+        );
 
       if (
         !result ||
@@ -707,16 +975,18 @@
       }
 
       state.user =
-        result.user || null;
+        result.user ||
+        null;
 
-      if (result.token) {
-        state.token = result.token;
-        localStorage.setItem(
-          "admflip_token",
-          result.token
-        );
-      }
+      /*
+       * Save access token.
+       */
+      saveTokens(result);
 
+      /*
+       * If the backend starts returning a
+       * refresh token, it is stored automatically.
+       */
       await loadAccount();
 
       updateAccountUI();
@@ -724,10 +994,15 @@
       closeLogin();
 
       toast(
-        `Verified as ${state.user?.username || "User"}`
+        `Verified as ${
+          state.user?.username ||
+          "User"
+        }`
       );
 
-      openPage("coinflip");
+      openPage(
+        "coinflip"
+      );
 
       await Promise.allSettled([
         loadCoinflips(),
@@ -746,7 +1021,9 @@
       }
     } finally {
       if (button) {
-        button.disabled = false;
+        button.disabled =
+          false;
+
         button.textContent =
           "Verify Roblox Bio";
       }
@@ -760,14 +1037,22 @@
   async function loadAccount() {
     try {
       const data =
-        await api("/account");
+        await api(
+          "/account"
+        );
 
       const account =
         data?.user;
 
       if (!account) {
-        state.user = null;
+        /*
+         * Do NOT immediately erase tokens.
+         *
+         * api() already attempted refresh
+         * when the server returned 401/403.
+         */
         updateAccountUI();
+
         return null;
       }
 
@@ -785,21 +1070,17 @@
 
       return state.user;
     } catch (error) {
-      if (
-        error.message &&
-        (
-          error.message.includes(
-            "verify"
-          ) ||
-          error.message.includes(
-            "authenticated"
-          )
-        )
-      ) {
-        state.user = null;
-        updateAccountUI();
-      }
+      console.error(
+        "Account:",
+        error
+      );
 
+      /*
+       * DO NOT silently logout here.
+       *
+       * A 404/500/network error may mean
+       * the backend is temporarily unavailable.
+       */
       return null;
     }
   }
@@ -821,7 +1102,9 @@
     show(account);
 
     const username =
-      el("accountUsername");
+      el(
+        "accountUsername"
+      );
 
     if (username) {
       username.textContent =
@@ -830,7 +1113,9 @@
     }
 
     const avatar =
-      el("accountAvatar");
+      el(
+        "accountAvatar"
+      );
 
     if (avatar) {
       avatar.src =
@@ -847,20 +1132,20 @@
         "/logout",
         {
           method: "POST"
-        }
+        },
+        false
       );
     } catch {}
 
-    state.user = null;
-    state.inventory = [];
-    state.verification = null;
-    state.token = null;
-    localStorage.removeItem("admflip_token");
+    /*
+     * Explicit logout is the one place where
+     * we intentionally remove credentials.
+     */
+    clearAuth();
 
-    updateAccountUI();
-    renderProfile();
-
-    toast("Signed out.");
+    toast(
+      "Signed out."
+    );
   }
 
   /* =====================================================
@@ -887,7 +1172,8 @@
           ? data
           : data?.pets || [];
 
-      state.pets = pets;
+      state.pets =
+        pets;
 
       renderValues(
         pets
@@ -962,6 +1248,7 @@
 
         <div class="pet-meta">
           <span>Value</span>
+
           <strong class="pet-value">
             ${formatValue(value)}
           </strong>
@@ -992,7 +1279,8 @@
               const name =
                 (
                   card.dataset
-                    .petName || ""
+                    .petName ||
+                  ""
                 ).toLowerCase();
 
               card.style.display =
@@ -1428,10 +1716,12 @@
         "/coinflips",
         {
           method: "POST",
+
           body: JSON.stringify({
             itemId:
               state.selectedPet.id ||
               state.selectedPet.itemId,
+
             side:
               state.selectedSide
           })
@@ -1656,6 +1946,7 @@
         "/chat/messages",
         {
           method: "POST",
+
           body: JSON.stringify({
             message: text
           })
@@ -1782,6 +2073,7 @@
 
           <div class="profile-stat">
             <span>TOTAL WAGERED</span>
+
             <strong>
               ${formatValue(
                 state.user.wagered ||
@@ -1792,6 +2084,7 @@
 
           <div class="profile-stat">
             <span>PROFIT</span>
+
             <strong>
               ${formatValue(
                 state.user.profit ||
@@ -1802,6 +2095,7 @@
 
           <div class="profile-stat">
             <span>GAMES PLAYED</span>
+
             <strong>
               ${formatNumber(
                 state.user.coinflips ||
@@ -1961,29 +2255,53 @@
   ===================================================== */
 
   function finishLoadingScreen() {
-    const screen = el("loadingScreen");
+    const screen =
+      el(
+        "loadingScreen"
+      );
 
     if (!screen) {
       return;
     }
 
-    // Keep the branded loader visible for about 0.7–0.9s.
-    setTimeout(() => {
-      screen.classList.add("is-hidden");
-      setTimeout(() => screen.remove(), 260);
-    }, 700);
+    setTimeout(
+      () => {
+        screen.classList.add(
+          "is-hidden"
+        );
+
+        setTimeout(
+          () =>
+            screen.remove(),
+          260
+        );
+      },
+      700
+    );
   }
 
   /* =====================================================
      INIT
   ===================================================== */
 
-
   async function init() {
     finishLoadingScreen();
 
     setupNavigation();
     setupEvents();
+
+    /*
+     * If we have a refresh token, attempt
+     * to restore the access token BEFORE
+     * loading /account.
+     *
+     * This is the key fix for:
+     *
+     * 401 -> refresh -> retry /account
+     */
+    if (state.refreshToken) {
+      await refreshAccessToken();
+    }
 
     await loadAccount();
 
@@ -2005,18 +2323,21 @@
         : "coinflip"
     );
 
-    setInterval(() => {
-      if (
-        state.page ===
-        "coinflip"
-      ) {
-        loadCoinflips();
-      }
+    setInterval(
+      () => {
+        if (
+          state.page ===
+          "coinflip"
+        ) {
+          loadCoinflips();
+        }
 
-      if (state.chatOpen) {
-        loadChat();
-      }
-    }, 5000);
+        if (state.chatOpen) {
+          loadChat();
+        }
+      },
+      5000
+    );
   }
 
   if (
