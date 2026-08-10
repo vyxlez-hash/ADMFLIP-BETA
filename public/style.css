@@ -682,31 +682,7 @@ COINFLIP
 ========================================================= */
 
 .coinflip-layout {
-display: grid;
-
-grid-template-columns: 320px 1fr;
-
-gap: 20px;
-}
-
-.create-panel {
-align-self: start;
-}
-
-.create-panel .muted {
-margin-bottom: 20px;
-}
-
-.selected-preview {
-margin-top: 14px;
-
-padding: 10px;
-
-background: #111111;
-
-border: 1px solid var(--purple);
-
-border-radius: 10px;
+display: block;
 }
 
 .coinflip-list {
@@ -820,20 +796,6 @@ font-size: 0.75rem;
 font-weight: 900;
 
 text-transform: uppercase;
-}
-
-.history-panel {
-margin-top: 20px;
-}
-
-.history-list {
-display: flex;
-
-flex-direction: column;
-
-gap: 8px;
-
-margin-top: 12px;
 }
 
 /* =========================================================
@@ -1454,7 +1416,6 @@ pointer-events: auto;
 flex: 0 0 auto;
 
 display: flex;
-
 align-items: center;
 justify-content: space-between;
 
@@ -1473,7 +1434,6 @@ font-size: 0.95rem;
 
 .chat-header span {
 display: flex;
-
 align-items: center;
 
 gap: 6px;
@@ -1596,7 +1556,6 @@ margin-bottom: 8px;
 color: var(--purple-light);
 
 font-size: 0.7rem;
-
 font-weight: 900;
 
 margin-bottom: 5px;
@@ -1654,6 +1613,208 @@ font-weight: 850;
 
 .chat-send:hover {
 background: var(--purple-dark);
+}
+
+/* =========================================================
+QUICK ACTIONS (RIGHT SIDE)
+========================================================= */
+
+.quick-actions {
+position: fixed;
+right: 16px;
+top: 50%;
+transform: translateY(-50%);
+z-index: 3000;
+
+display: flex;
+flex-direction: column;
+gap: 10px;
+}
+
+.quick-action-btn {
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+gap: 6px;
+
+width: 62px;
+padding: 12px 6px;
+
+background: #000000;
+color: #ffffff;
+
+border: 1px solid var(--border);
+border-radius: 13px;
+
+font-weight: 850;
+font-size: 0.7rem;
+
+box-shadow:
+0 8px 22px rgba(0, 0, 0, 0.5);
+
+transition:
+background 0.15s ease,
+border-color 0.15s ease,
+box-shadow 0.15s ease,
+transform 0.1s ease;
+}
+
+.quick-action-btn i {
+font-size: 16px;
+line-height: 1;
+}
+
+.quick-action-btn:hover {
+background: #111111;
+
+border-color: var(--purple-light);
+
+box-shadow:
+0 0 16px rgba(139, 92, 246, 0.35);
+
+transform: translateY(-2px);
+}
+
+.quick-action-btn:active {
+transform: scale(0.96);
+}
+
+.quick-action-btn.primary {
+background: var(--purple);
+border-color: var(--purple);
+
+box-shadow:
+0 8px 22px rgba(139, 92, 246, 0.3);
+}
+
+.quick-action-btn.primary:hover {
+background: var(--purple-dark);
+border-color: var(--purple-light);
+}
+
+/* =========================================================
+HISTORY
+========================================================= */
+
+.history-list {
+display: flex;
+flex-direction: column;
+gap: 8px;
+
+margin-top: 12px;
+}
+
+.history-item {
+display: flex;
+align-items: center;
+gap: 12px;
+
+padding: 12px 13px;
+
+background: #111111;
+
+border: 1px solid var(--border-soft);
+
+border-radius: 11px;
+}
+
+.history-item img {
+width: 40px;
+height: 40px;
+
+object-fit: contain;
+
+border-radius: 9px;
+
+background: #171717;
+}
+
+.history-info {
+min-width: 0;
+flex: 1;
+}
+
+.history-info strong {
+display: block;
+
+font-size: 0.9rem;
+
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+
+.history-info small {
+color: var(--muted);
+font-size: 0.75rem;
+}
+
+.history-meta {
+margin-top: 2px;
+
+color: var(--muted);
+font-size: 0.72rem;
+}
+
+.history-result {
+flex-shrink: 0;
+
+font-size: 0.72rem;
+font-weight: 900;
+text-transform: uppercase;
+letter-spacing: 0.5px;
+
+padding: 6px 10px;
+
+border-radius: 7px;
+
+border: 1px solid var(--border-soft);
+
+color: var(--muted);
+}
+
+.history-result.won {
+color: var(--green);
+
+border-color: rgba(57, 217, 138, 0.35);
+
+background: rgba(57, 217, 138, 0.08);
+}
+
+.history-result.lost {
+color: var(--red);
+
+border-color: rgba(240, 91, 103, 0.35);
+
+background: rgba(240, 91, 103, 0.08);
+}
+
+/* =========================================================
+RETRY BUTTON
+========================================================= */
+
+.retry-btn {
+margin-top: 14px;
+
+padding: 9px 18px;
+
+background: #111111;
+color: #ffffff;
+
+border: 1px solid var(--purple);
+border-radius: 8px;
+
+font-weight: 850;
+
+transition:
+background 0.15s ease,
+border-color 0.15s ease;
+}
+
+.retry-btn:hover {
+background: #1a1a1a;
+border-color: var(--purple-light);
 }
 
 /* =========================================================
@@ -1750,10 +1911,6 @@ RESPONSIVE
 display: none;
 }
 
-.coinflip-layout {
-grid-template-columns: 1fr;
-}
-
 .chat-panel {
 width: 320px;
 }
@@ -1805,11 +1962,8 @@ display: none;
 main {
 width: calc(100% - 24px);
 
-```
 margin-left: 12px;
 margin-right: 12px;
-```
-
 }
 
 .page-heading h1 {
@@ -1824,10 +1978,7 @@ grid-template-columns: 1fr;
 .values-toolbar {
 align-items: stretch;
 
-```
 flex-direction: column;
-```
-
 }
 
 .value-search {
@@ -1845,10 +1996,7 @@ padding: 12px;
 .modal-box {
 padding: 19px;
 
-```
 max-height: 94vh;
-```
-
 }
 
 .login-banner {
@@ -1858,10 +2006,7 @@ height: 100px;
 .coinflip-card {
 align-items: flex-start;
 
-```
 flex-direction: column;
-```
-
 }
 
 .coinflip-side {
@@ -1871,10 +2016,17 @@ align-self: flex-start;
 .chat-panel {
 width: min(100%, 380px);
 
-```
 right: auto;
-```
+}
 
+.quick-actions {
+right: 8px;
+}
+
+.quick-action-btn {
+width: 52px;
+padding: 10px 5px;
+font-size: 0.65rem;
 }
 }
 
@@ -1924,6 +2076,7 @@ width: 85px;
 height: 85px;
 }
 }
+
 /* =====================================================
    ADMFLIP HEADER FIX
    ===================================================== */
