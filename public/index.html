@@ -1,3 +1,9 @@
+
+### `index.html`
+
+This version uses **`/logo.png` for ADMFLIP** and **`/roblox.png` for the Roblox login icon**, with all the broken backslashes/code fences removed.
+
+:::writing{variant="document" id="74106"}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,28 +21,20 @@
 
   <title>ADMFLIP</title>
 
-  <!-- Icons -->
+  <link rel="stylesheet" href="/style.css">
+
+  <!-- Font Awesome / icon library if already used by your project -->
   <link
     rel="stylesheet"
     href="https://cdn-uicons.flaticon.com/3.0.0/uicons-regular-rounded/css/uicons-regular-rounded.css"
-  >
-
-  <link
-    rel="stylesheet"
-    href="https://cdn-uicons.flaticon.com/3.0.0/uicons-solid-rounded/css/uicons-solid-rounded.css"
-  >
-
-  <link
-    rel="stylesheet"
-    href="/style.css"
   >
 </head>
 
 <body>
 
-  <!-- =====================================================
+  <!-- ===================================================
        LOADING SCREEN
-       ===================================================== -->
+  =================================================== -->
 
   <div
     id="loadingScreen"
@@ -61,9 +59,9 @@
   </div>
 
 
-  <!-- =====================================================
+  <!-- ===================================================
        HEADER
-       ===================================================== -->
+  =================================================== -->
 
   <header>
 
@@ -221,15 +219,15 @@
   </header>
 
 
-  <!-- =====================================================
+  <!-- ===================================================
        MAIN
-       ===================================================== -->
+  =================================================== -->
 
   <main>
 
-    <!-- ===================================================
+    <!-- =================================================
          COINFLIP PAGE
-         =================================================== -->
+    ================================================= -->
 
     <section
       id="coinflipPage"
@@ -425,9 +423,9 @@
     </section>
 
 
-    <!-- ===================================================
+    <!-- =================================================
          VALUES PAGE
-         =================================================== -->
+    ================================================= -->
 
     <section
       id="valuesPage"
@@ -499,9 +497,9 @@
     </section>
 
 
-    <!-- ===================================================
+    <!-- =================================================
          PROFILE PAGE
-         =================================================== -->
+    ================================================= -->
 
     <section
       id="profilePage"
@@ -549,9 +547,9 @@
   </main>
 
 
-  <!-- =====================================================
+  <!-- ===================================================
        CHAT
-       ===================================================== -->
+  =================================================== -->
 
   <aside
     id="chatPanel"
@@ -637,16 +635,13 @@
   </aside>
 
 
-  <!-- =====================================================
+  <!-- ===================================================
        LOGIN MODAL
-       ===================================================== -->
+  =================================================== -->
 
   <div
     id="loginModal"
     class="modal hidden"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="loginModalTitle"
   >
 
     <div class="modal-box login-modal-box">
@@ -749,16 +744,13 @@
   </div>
 
 
-  <!-- =====================================================
+  <!-- ===================================================
        CREATE COINFLIP MODAL
-       ===================================================== -->
+  =================================================== -->
 
   <div
     id="createModal"
     class="modal hidden"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="createModalTitle"
   >
 
     <div class="modal-box large-modal">
@@ -851,9 +843,9 @@
   </div>
 
 
-  <!-- =====================================================
+  <!-- ===================================================
        TOAST
-       ===================================================== -->
+  =================================================== -->
 
   <div
     id="toast"
@@ -862,12 +854,13 @@
   ></div>
 
 
-  <!-- =====================================================
-       JAVASCRIPT
-       ===================================================== -->
-
+  <!-- YOUR EXISTING JAVASCRIPT -->
   <script src="/script.js"></script>
 
 </body>
 </html>
+:::
 
+**Important:** put `logo.png` and `roblox.png` directly in your site's `public` folder if your server serves `/public` as the root. The CSS is now valid CSS — especially the broken `\:` selectors, `\#username`, escaped comments, and the accidental triple-backtick sections are fixed.
+
+If your actual JS file is named `app.js`/`main.js` instead of `script.js`, change only the last `<script src="/script.js">` line to your real filename.
