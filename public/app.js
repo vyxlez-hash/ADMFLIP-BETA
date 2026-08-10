@@ -1722,6 +1722,11 @@
               state.selectedPet.id ||
               state.selectedPet.itemId,
 
+            petName:
+              petName(
+                state.selectedPet
+              ),
+
             side:
               state.selectedSide
           })
