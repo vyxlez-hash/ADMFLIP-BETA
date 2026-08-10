@@ -8,82 +8,60 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <meta
-    name="theme-color"
-    content="#050505"
-  >
-
   <title>ADMFLIP</title>
 
-  <link rel="stylesheet" href="/style.css">
-
-  <!-- Font Awesome / icon library -->
   <link
     rel="stylesheet"
-    href="https://cdn-uicons.flaticon.com/3.0.0/uicons-regular-rounded/css/uicons-regular-rounded.css"
+    href="https://cdn-uicons.flaticon.com/4.0.0/uicons-regular-rounded/css/uicons-regular-rounded.css"
+  >
+  <link
+    rel="stylesheet"
+    href="https://cdn-uicons.flaticon.com/4.0.0/uicons-regular-straight/css/uicons-regular-straight.css"
+  >
+  <link
+    rel="stylesheet"
+    href="https://cdn-uicons.flaticon.com/4.0.0/uicons-thin/css/uicons-thin.css"
+  >
+
+  <link
+    rel="stylesheet"
+    href="/style.css"
   >
 </head>
 
 <body>
 
-  <!-- ===================================================
-       LOADING SCREEN
-  =================================================== -->
-
-  <div
-    id="loadingScreen"
-    class="loading-screen"
-  >
-
+  <!-- Fast startup/loading screen -->
+  <div id="loadingScreen" class="loading-screen" aria-label="Loading ADMFLIP">
     <div class="loading-brand">
-
-      <img
-        src="/logo.png"
-        class="loading-logo"
-        alt="ADMFLIP"
-        onerror="this.style.display='none'"
-      >
-
+      <img src="/logo.png" alt="ADMFLIP" class="loading-logo">
       <div class="loading-line">
         <span></span>
       </div>
-
     </div>
-
   </div>
 
-
-  <!-- ===================================================
+  <!-- =====================================================
        HEADER
-  =================================================== -->
+       ===================================================== -->
 
-  <header>
-
-    <!-- BRAND -->
+  <header id="siteHeader">
 
     <a
       href="#coinflip"
       class="brand"
       id="brand"
-      aria-label="ADMFLIP Home"
     >
-
       <img
         src="/logo.png"
         class="logo"
         alt="ADMFLIP"
-        onerror="this.style.display='none'"
       >
 
     </a>
 
 
-    <!-- NAVIGATION -->
-
-    <nav
-      class="nav"
-      aria-label="Main navigation"
-    >
+    <nav class="nav">
 
       <button
         type="button"
@@ -91,16 +69,9 @@
         data-page="coinflip"
         id="coinflipNav"
       >
-
-        <i
-          class="fi fi-rs-coin nav-icon"
-          aria-hidden="true"
-        ></i>
-
+        <i class="fi fi-rs-coin nav-icon" aria-hidden="true"></i>
         <span>Coinflip</span>
-
       </button>
-
 
       <button
         type="button"
@@ -108,42 +79,24 @@
         data-page="values"
         id="valuesNav"
       >
-
-        <i
-          class="fi fi-rs-stats nav-icon"
-          aria-hidden="true"
-        ></i>
-
+        <i class="fi fi-rs-stats nav-icon" aria-hidden="true"></i>
         <span>Values</span>
-
       </button>
-
 
       <button
         type="button"
         class="nav-item"
         id="topChatButton"
       >
-
-        <i
-          class="fi fi-rr-comment nav-icon"
-          aria-hidden="true"
-        ></i>
-
+        <i class="fi fi-rr-comment nav-icon" aria-hidden="true"></i>
         <span class="online-dot-small"></span>
-
         <span>Chat</span>
-
       </button>
 
     </nav>
 
 
-    <!-- ACCOUNT -->
-
     <div class="user-box">
-
-      <!-- LOGGED-IN ACCOUNT -->
 
       <div
         id="accountBox"
@@ -154,13 +107,12 @@
           id="accountAvatar"
           src="/logo.png"
           class="account-avatar"
-          alt="User avatar"
+          alt=""
         >
 
         <span id="accountUsername">
           User
         </span>
-
 
         <button
           type="button"
@@ -169,16 +121,9 @@
           aria-label="Profile"
           title="Profile"
         >
-
-          <i
-            class="fi fi-rs-user-gear"
-            aria-hidden="true"
-          ></i>
-
+          <i class="fi fi-rs-user-gear" aria-hidden="true"></i>
           <span>Profile</span>
-
         </button>
-
 
         <button
           type="button"
@@ -191,21 +136,17 @@
       </div>
 
 
-      <!-- LOGIN -->
-
       <button
         type="button"
         id="loginBtn"
-        class="btn login-button"
+        class="btn purple login-button"
       >
-
         <img
           src="/roblox.png"
-          alt="Roblox"
+          alt=""
         >
 
-        <span>Login with Roblox</span>
-
+        Login with Roblox
       </button>
 
     </div>
@@ -213,15 +154,16 @@
   </header>
 
 
-  <!-- ===================================================
+  <!-- =====================================================
        MAIN
-  =================================================== -->
+       ===================================================== -->
 
-  <main>
+  <main id="mainContent">
 
-    <!-- =================================================
+
+    <!-- ===================================================
          COINFLIP PAGE
-    ================================================= -->
+         =================================================== -->
 
     <section
       id="coinflipPage"
@@ -231,7 +173,6 @@
       <div class="page-heading">
 
         <div>
-
           <div class="eyebrow">
             ADMFLIP
           </div>
@@ -243,27 +184,20 @@
           <p>
             Flip your pets against other players.
           </p>
-
         </div>
 
       </div>
 
 
-      <!-- STATS -->
+      <!-- Stats -->
 
       <div class="stats-grid">
 
         <div class="stat-card">
 
           <div class="stat-label">
-
-            <i
-              class="fi fi-rr-piggy-bank"
-              aria-hidden="true"
-            ></i>
-
+            <i class="fi fi-tr-piggy-bank" aria-hidden="true"></i>
             <span>TOTAL COINFLIPS</span>
-
           </div>
 
           <strong id="activeCount">
@@ -276,14 +210,8 @@
         <div class="stat-card">
 
           <div class="stat-label">
-
-            <i
-              class="fi fi-rs-stats"
-              aria-hidden="true"
-            ></i>
-
+            <i class="fi fi-rs-stats" aria-hidden="true"></i>
             <span>TOTAL VALUE</span>
-
           </div>
 
           <strong id="totalValue">
@@ -296,14 +224,8 @@
         <div class="stat-card">
 
           <div class="stat-label">
-
-            <i
-              class="fi fi-rr-users"
-              aria-hidden="true"
-            ></i>
-
+            <i class="fi fi-rr-users" aria-hidden="true"></i>
             <span>ONLINE</span>
-
           </div>
 
           <strong id="coinflipOnline">
@@ -315,36 +237,100 @@
       </div>
 
 
-      <!-- OPEN COINFLIPS -->
+      <div class="coinflip-layout">
 
-      <section class="panel">
 
-        <div class="section-title-row">
+        <!-- Create -->
 
-          <div>
+        <section class="panel create-panel">
 
-            <div class="eyebrow">
-              LIVE
+          <div class="eyebrow">
+            CREATE
+          </div>
+
+          <h2>
+            Create a Coinflip
+          </h2>
+
+          <p class="muted">
+            Select one of your pets and choose your side.
+          </p>
+
+
+          <button
+            type="button"
+            id="createCoinflipBtn"
+            class="btn purple full-width"
+          >
+            Create Coinflip
+          </button>
+
+
+          <div
+            id="selectedPetPreview"
+            class="selected-preview hidden"
+          >
+          </div>
+
+        </section>
+
+
+        <!-- Open coinflips -->
+
+        <section class="panel">
+
+          <div class="section-title-row">
+
+            <div>
+
+              <div class="eyebrow">
+                LIVE
+              </div>
+
+              <h2>
+                Open Coinflips
+              </h2>
+
             </div>
 
-            <h2>
-              Open Coinflips
-            </h2>
+          </div>
+
+
+          <div
+            id="coinflips"
+            class="coinflip-list"
+          >
+
+            <div class="loading">
+              Loading coinflips...
+            </div>
 
           </div>
 
+        </section>
+
+      </div>
+
+
+      <!-- History -->
+
+      <section class="panel history-panel">
+
+        <div class="eyebrow">
+          ACCOUNT
         </div>
 
+        <h2>
+          My History
+        </h2>
 
         <div
-          id="coinflips"
-          class="coinflip-list"
+          id="history"
+          class="history-list"
         >
-
           <div class="loading">
-            Loading coinflips...
+            Login to see your history.
           </div>
-
         </div>
 
       </section>
@@ -352,9 +338,9 @@
     </section>
 
 
-    <!-- =================================================
+    <!-- ===================================================
          VALUES PAGE
-    ================================================= -->
+         =================================================== -->
 
     <section
       id="valuesPage"
@@ -393,7 +379,7 @@
             </h2>
 
             <p class="muted">
-              Live ADMFLIP values.
+              Values provided by your ADMFLIP backend.
             </p>
 
           </div>
@@ -426,9 +412,9 @@
     </section>
 
 
-    <!-- =================================================
+    <!-- ===================================================
          PROFILE PAGE
-    ================================================= -->
+         =================================================== -->
 
     <section
       id="profilePage"
@@ -476,62 +462,205 @@
   </main>
 
 
-  <!-- ===================================================
-       QUICK ACTIONS (RIGHT SIDE)
-  =================================================== -->
+  <!-- =====================================================
+       LOGIN MODAL
+       ===================================================== -->
 
   <div
-    id="quickActions"
-    class="quick-actions"
-    aria-label="Quick actions"
+    id="loginModal"
+    class="modal hidden"
   >
 
-    <button
-      type="button"
-      id="quickCreateBtn"
-      class="quick-action-btn primary"
-    >
+    <div class="modal-box login-modal-box">
 
-      <i
-        class="fi fi-rr-plus"
-        aria-hidden="true"
-      ></i>
-
-      <span>
-        Create
-      </span>
-
-    </button>
+      <button
+        type="button"
+        id="closeLogin"
+        class="modal-close"
+      >
+        ×
+      </button>
 
 
-    <button
-      type="button"
-      id="quickHistoryBtn"
-      class="quick-action-btn"
-    >
+      <img
+        src="/login-banner.png"
+        class="login-banner"
+        alt="Roblox Login"
+      >
 
-      <i
-        class="fi fi-rr-clock"
-        aria-hidden="true"
-      ></i>
 
-      <span>
-        History
-      </span>
+      <div class="eyebrow">
+        ROBLOX VERIFICATION
+      </div>
 
-    </button>
+      <h2>
+        Login with Roblox
+      </h2>
+
+      <p class="muted">
+        Enter your Roblox username. We will find the public
+        profile and give you a temporary phrase to place
+        in your Roblox About/Bio.
+      </p>
+
+
+      <div id="step1">
+
+        <form id="usernameForm">
+
+          <input
+            type="text"
+            id="username"
+            placeholder="Enter Roblox username"
+            autocomplete="off"
+            required
+          >
+
+          <button
+            type="submit"
+            id="continueLogin"
+            class="btn purple"
+          >
+            Search
+          </button>
+
+        </form>
+
+      </div>
+
+
+      <div
+        id="loginProfile"
+        class="login-profile hidden"
+      >
+      </div>
+
+
+      <div
+        id="phrase"
+        class="phrase hidden"
+      >
+      </div>
+
+
+      <button
+        type="button"
+        id="verify"
+        class="btn purple full-width hidden"
+      >
+        Verify Roblox Bio
+      </button>
+
+
+      <p
+        id="loginMessage"
+        class="login-message"
+      >
+      </p>
+
+    </div>
 
   </div>
 
 
-  <!-- ===================================================
+  <!-- =====================================================
+       COINFLIP MODAL
+       ===================================================== -->
+
+  <div
+    id="createModal"
+    class="modal hidden"
+  >
+
+    <div class="modal-box large-modal">
+
+      <button
+        type="button"
+        id="closeCreateModal"
+        class="modal-close"
+      >
+        ×
+      </button>
+
+
+      <div class="eyebrow">
+        COINFLIP
+      </div>
+
+      <h2>
+        Choose Your Pet
+      </h2>
+
+      <p class="muted">
+        Select the pet you want to use.
+      </p>
+
+
+      <div
+        id="createInventory"
+        class="inventory-grid"
+      >
+
+        <div class="loading">
+          Loading inventory...
+        </div>
+
+      </div>
+
+
+      <div
+        id="sideArea"
+        class="side-area hidden"
+      >
+
+        <p class="side-title">
+          Choose your side
+        </p>
+
+
+        <div class="side-buttons">
+
+          <button
+            type="button"
+            class="side-btn"
+            data-side="heads"
+          >
+            Heads
+          </button>
+
+          <button
+            type="button"
+            class="side-btn"
+            data-side="tails"
+          >
+            Tails
+          </button>
+
+        </div>
+
+
+        <button
+          type="button"
+          id="postCoinflipBtn"
+          class="btn purple full-width"
+        >
+          Create Coinflip
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =====================================================
        CHAT
-  =================================================== -->
+       ===================================================== -->
 
   <aside
     id="chatPanel"
     class="chat-panel"
-    aria-label="ADMFLIP Chat"
   >
 
     <div class="chat-header">
@@ -544,15 +673,11 @@
 
         <span>
 
-          <i
-            class="fi fi-rr-users chat-online-icon"
-            aria-hidden="true"
-          ></i>
-
+          <i class="fi fi-rr-users chat-online-icon" aria-hidden="true"></i>
           <i class="online-dot"></i>
 
           <b id="panelOnlineCount">
-            —
+            0
           </b>
 
           online
@@ -566,8 +691,6 @@
         type="button"
         id="chatClose"
         class="chat-close"
-        aria-label="Close chat"
-        title="Close chat"
       >
         ×
       </button>
@@ -612,279 +735,14 @@
   </aside>
 
 
-  <!-- ===================================================
-       LOGIN MODAL
-  =================================================== -->
-
-  <div
-    id="loginModal"
-    class="modal hidden"
-  >
-
-    <div class="modal-box login-modal-box">
-
-      <button
-        type="button"
-        id="closeLogin"
-        class="modal-close"
-        aria-label="Close login"
-      >
-        ×
-      </button>
-
-
-      <img
-        src="/login-banner.png"
-        class="login-banner"
-        alt="ADMFLIP Login"
-      >
-
-
-      <div class="eyebrow">
-        ROBLOX VERIFICATION
-      </div>
-
-
-      <h2 id="loginModalTitle">
-        Login with Roblox
-      </h2>
-
-
-      <p class="muted">
-        Enter your Roblox username. We will find the public
-        profile and give you a temporary phrase to place
-        in your Roblox About/Bio.
-      </p>
-
-
-      <!-- STEP 1 -->
-
-      <div id="step1">
-
-        <form id="usernameForm">
-
-          <input
-            type="text"
-            id="username"
-            placeholder="Enter Roblox username"
-            autocomplete="off"
-            required
-          >
-
-          <button
-            type="submit"
-            id="continueLogin"
-            class="btn roblox-login-action"
-          >
-            Search
-          </button>
-
-        </form>
-
-      </div>
-
-
-      <!-- PROFILE -->
-
-      <div
-        id="loginProfile"
-        class="login-profile hidden"
-      ></div>
-
-
-      <!-- PHRASE -->
-
-      <div
-        id="phrase"
-        class="phrase hidden"
-      ></div>
-
-
-      <!-- VERIFY -->
-
-      <button
-        type="button"
-        id="verify"
-        class="btn roblox-login-action full-width hidden"
-      >
-        Verify Roblox Bio
-      </button>
-
-
-      <p
-        id="loginMessage"
-        class="login-message"
-      ></p>
-
-    </div>
-
-  </div>
-
-
-  <!-- ===================================================
-       CREATE COINFLIP MODAL
-  =================================================== -->
-
-  <div
-    id="createModal"
-    class="modal hidden"
-  >
-
-    <div class="modal-box large-modal">
-
-      <button
-        type="button"
-        id="closeCreateModal"
-        class="modal-close"
-        aria-label="Close"
-      >
-        ×
-      </button>
-
-
-      <div class="eyebrow">
-        COINFLIP
-      </div>
-
-
-      <h2 id="createModalTitle">
-        Choose Your Pet
-      </h2>
-
-
-      <p class="muted">
-        Select the pet you want to use.
-      </p>
-
-
-      <!-- INVENTORY -->
-
-      <div
-        id="createInventory"
-        class="inventory-grid"
-      >
-
-        <div class="loading">
-          Loading inventory...
-        </div>
-
-      </div>
-
-
-      <!-- SIDE -->
-
-      <div
-        id="sideArea"
-        class="side-area hidden"
-      >
-
-        <p class="side-title">
-          Choose your side
-        </p>
-
-
-        <div class="side-buttons">
-
-          <button
-            type="button"
-            class="side-btn"
-            data-side="heads"
-          >
-            Heads
-          </button>
-
-
-          <button
-            type="button"
-            class="side-btn"
-            data-side="tails"
-          >
-            Tails
-          </button>
-
-        </div>
-
-
-        <button
-          type="button"
-          id="postCoinflipBtn"
-          class="btn purple full-width"
-        >
-          Create Coinflip
-        </button>
-
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <!-- ===================================================
-       HISTORY MODAL
-  =================================================== -->
-
-  <div
-    id="historyModal"
-    class="modal hidden"
-  >
-
-    <div class="modal-box large-modal">
-
-      <button
-        type="button"
-        id="closeHistoryModal"
-        class="modal-close"
-        aria-label="Close history"
-      >
-        ×
-      </button>
-
-
-      <div class="eyebrow">
-        ACCOUNT
-      </div>
-
-
-      <h2>
-        My History
-      </h2>
-
-
-      <p class="muted">
-        Your recent coinflips.
-      </p>
-
-
-      <div
-        id="historyList"
-        class="history-list"
-      >
-
-        <div class="loading">
-          Login to see your history.
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <!-- ===================================================
+  <!-- =====================================================
        TOAST
-  =================================================== -->
+       ===================================================== -->
 
-  <div
-    id="toast"
-    role="status"
-    aria-live="polite"
-  ></div>
+  <div id="toast"></div>
 
 
-  <!-- JAVASCRIPT -->
-  <script src="/script.js"></script>
+  <script src="/app.js"></script>
 
 </body>
 </html>
