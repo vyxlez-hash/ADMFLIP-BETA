@@ -10,57 +10,63 @@
 
   <title>ADMFLIP</title>
 
+  <!-- Font Awesome / Fluent Icons -->
   <link
     rel="stylesheet"
-    href="https://cdn-uicons.flaticon.com/4.0.0/uicons-regular-rounded/css/uicons-regular-rounded.css"
-  >
-  <link
-    rel="stylesheet"
-    href="https://cdn-uicons.flaticon.com/4.0.0/uicons-regular-straight/css/uicons-regular-straight.css"
-  >
-  <link
-    rel="stylesheet"
-    href="https://cdn-uicons.flaticon.com/4.0.0/uicons-thin/css/uicons-thin.css"
+    href="https://cdn-uicons.flaticon.com/3.0.0/uicons-regular-rounded/css/uicons-regular-rounded.css"
   >
 
   <link
     rel="stylesheet"
-    href="/style.css"
+    href="https://cdn-uicons.flaticon.com/3.0.0/uicons-regular-straight/css/uicons-regular-straight.css"
+  >
+
+  <link
+    rel="stylesheet"
+    href="style.css"
   >
 </head>
 
 <body>
 
-  <!-- Fast startup/loading screen -->
-  <div id="loadingScreen" class="loading-screen" aria-label="Loading ADMFLIP">
+  <!-- ===================================================
+       STARTUP LOADING SCREEN
+       =================================================== -->
+
+  <div
+    id="loadingScreen"
+    class="loading-screen"
+  >
+
     <div class="loading-brand">
-      <img src="/logo.png" alt="ADMFLIP" class="loading-logo">
+
+      <img
+        src="/logo.png"
+        class="loading-logo"
+        alt="ADMFLIP"
+      >
+
       <div class="loading-line">
         <span></span>
       </div>
+
     </div>
+
   </div>
 
-  <!-- =====================================================
+
+  <!-- ===================================================
        HEADER
-       ===================================================== -->
+       =================================================== -->
 
-  <header id="siteHeader">
-
-    <a
-  href="https://discord.gg/qVB69vUaB9"
-  target="_blank"
-  rel="noopener noreferrer"
-  class="deposit-withdraw-btn"
->
-  <span>Deposit/Withdraw</span>
-</a>
+  <header>
 
     <a
       href="#coinflip"
       class="brand"
       id="brand"
     >
+
       <img
         src="/logo.png"
         class="logo"
@@ -78,9 +84,16 @@
         data-page="coinflip"
         id="coinflipNav"
       >
-        <i class="fi fi-rs-coin nav-icon" aria-hidden="true"></i>
+
+        <i
+          class="fi fi-rs-coin nav-icon"
+          aria-hidden="true"
+        ></i>
+
         <span>Coinflip</span>
+
       </button>
+
 
       <button
         type="button"
@@ -88,22 +101,59 @@
         data-page="values"
         id="valuesNav"
       >
-        <i class="fi fi-rs-stats nav-icon" aria-hidden="true"></i>
+
+        <i
+          class="fi fi-rs-stats nav-icon"
+          aria-hidden="true"
+        ></i>
+
         <span>Values</span>
+
       </button>
+
 
       <button
         type="button"
         class="nav-item"
         id="topChatButton"
       >
-        <i class="fi fi-rr-comment nav-icon" aria-hidden="true"></i>
+
+        <i
+          class="fi fi-rr-comment nav-icon"
+          aria-hidden="true"
+        ></i>
+
         <span class="online-dot-small"></span>
+
         <span>Chat</span>
+
       </button>
+
+
+      <!-- Deposit / Withdraw -->
+
+      <a
+        href="https://discord.gg/qVB69vUaB9"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="nav-item deposit-withdraw-btn"
+      >
+
+        <i
+          class="fi fi-rr-wallet nav-icon"
+          aria-hidden="true"
+        ></i>
+
+        <span>Deposit/Withdraw</span>
+
+      </a>
 
     </nav>
 
+
+    <!-- ===================================================
+         ACCOUNT
+         =================================================== -->
 
     <div class="user-box">
 
@@ -123,6 +173,7 @@
           User
         </span>
 
+
         <button
           type="button"
           id="profileBtn"
@@ -130,9 +181,16 @@
           aria-label="Profile"
           title="Profile"
         >
-          <i class="fi fi-rs-user-gear" aria-hidden="true"></i>
+
+          <i
+            class="fi fi-rs-user-gear"
+            aria-hidden="true"
+          ></i>
+
           <span>Profile</span>
+
         </button>
+
 
         <button
           type="button"
@@ -150,12 +208,14 @@
         id="loginBtn"
         class="btn purple login-button"
       >
+
         <img
           src="/roblox.png"
           alt=""
         >
 
-        Login with Roblox
+        <span>Login with Roblox</span>
+
       </button>
 
     </div>
@@ -163,16 +223,16 @@
   </header>
 
 
-  <!-- =====================================================
+  <!-- ===================================================
        MAIN
-       ===================================================== -->
+       =================================================== -->
 
-  <main id="mainContent">
+  <main>
 
 
-    <!-- ===================================================
+    <!-- =================================================
          COINFLIP PAGE
-         =================================================== -->
+         ================================================= -->
 
     <section
       id="coinflipPage"
@@ -182,6 +242,7 @@
       <div class="page-heading">
 
         <div>
+
           <div class="eyebrow">
             ADMFLIP
           </div>
@@ -193,6 +254,7 @@
           <p>
             Flip your pets against other players.
           </p>
+
         </div>
 
       </div>
@@ -202,11 +264,18 @@
 
       <div class="stats-grid">
 
+
         <div class="stat-card">
 
           <div class="stat-label">
-            <i class="fi fi-tr-piggy-bank" aria-hidden="true"></i>
+
+            <i
+              class="fi fi-tr-piggy-bank"
+              aria-hidden="true"
+            ></i>
+
             <span>TOTAL COINFLIPS</span>
+
           </div>
 
           <strong id="activeCount">
@@ -219,8 +288,14 @@
         <div class="stat-card">
 
           <div class="stat-label">
-            <i class="fi fi-rs-stats" aria-hidden="true"></i>
+
+            <i
+              class="fi fi-rs-stats"
+              aria-hidden="true"
+            ></i>
+
             <span>TOTAL VALUE</span>
+
           </div>
 
           <strong id="totalValue">
@@ -233,8 +308,14 @@
         <div class="stat-card">
 
           <div class="stat-label">
-            <i class="fi fi-rr-users" aria-hidden="true"></i>
+
+            <i
+              class="fi fi-rr-users"
+              aria-hidden="true"
+            ></i>
+
             <span>ONLINE</span>
+
           </div>
 
           <strong id="coinflipOnline">
@@ -245,6 +326,8 @@
 
       </div>
 
+
+      <!-- Coinflip layout -->
 
       <div class="coinflip-layout">
 
@@ -278,8 +361,7 @@
           <div
             id="selectedPetPreview"
             class="selected-preview hidden"
-          >
-          </div>
+          ></div>
 
         </section>
 
@@ -333,13 +415,16 @@
           My History
         </h2>
 
+
         <div
           id="history"
           class="history-list"
         >
+
           <div class="loading">
             Login to see your history.
           </div>
+
         </div>
 
       </section>
@@ -347,9 +432,9 @@
     </section>
 
 
-    <!-- ===================================================
+    <!-- =================================================
          VALUES PAGE
-         =================================================== -->
+         ================================================= -->
 
     <section
       id="valuesPage"
@@ -421,9 +506,9 @@
     </section>
 
 
-    <!-- ===================================================
+    <!-- =================================================
          PROFILE PAGE
-         =================================================== -->
+         ================================================= -->
 
     <section
       id="profilePage"
@@ -471,9 +556,9 @@
   </main>
 
 
-  <!-- =====================================================
+  <!-- ===================================================
        LOGIN MODAL
-       ===================================================== -->
+       =================================================== -->
 
   <div
     id="loginModal"
@@ -541,15 +626,13 @@
       <div
         id="loginProfile"
         class="login-profile hidden"
-      >
-      </div>
+      ></div>
 
 
       <div
         id="phrase"
         class="phrase hidden"
-      >
-      </div>
+      ></div>
 
 
       <button
@@ -564,17 +647,16 @@
       <p
         id="loginMessage"
         class="login-message"
-      >
-      </p>
+      ></p>
 
     </div>
 
   </div>
 
 
-  <!-- =====================================================
-       COINFLIP MODAL
-       ===================================================== -->
+  <!-- ===================================================
+       CREATE COINFLIP MODAL
+       =================================================== -->
 
   <div
     id="createModal"
@@ -663,9 +745,9 @@
   </div>
 
 
-  <!-- =====================================================
-       CHAT
-       ===================================================== -->
+  <!-- ===================================================
+       CHAT PANEL
+       =================================================== -->
 
   <aside
     id="chatPanel"
@@ -682,7 +764,11 @@
 
         <span>
 
-          <i class="fi fi-rr-users chat-online-icon" aria-hidden="true"></i>
+          <i
+            class="fi fi-rr-users chat-online-icon"
+            aria-hidden="true"
+          ></i>
+
           <i class="online-dot"></i>
 
           <b id="panelOnlineCount">
@@ -744,9 +830,9 @@
   </aside>
 
 
-  <!-- =====================================================
+  <!-- ===================================================
        TOAST
-       ===================================================== -->
+       =================================================== -->
 
   <div id="toast"></div>
 
