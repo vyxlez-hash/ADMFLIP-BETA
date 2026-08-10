@@ -1,11 +1,7 @@
 "use strict";
 
 /* =========================================================
-   ADMFLIP FRONTEND — full drop-in for public/script.js
-   Matches backend v3 endpoints:
-   /pets  /coinflips  /coinflips/:id/accept  /status
-   /chat/messages  /chat/online  /account  /history
-   /user/:username  /create  /check  /logout
+   ADMFLIP FRONTEND v3 — full drop-in for public/script.js
 ========================================================= */
 
 const API = {
@@ -46,7 +42,7 @@ function esc(value) {
     .replace(/'/g, "&#39;");
 }
 
-/* Numbers always use "." as decimal separator — never "3,4". */
+/* Numbers always use "." as the decimal separator — never "3,4". */
 function fmt(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return "0";
@@ -196,11 +192,12 @@ const state = {
 };
 
 /* =========================================================
-   NAVIGATION (Coinflip / Values / Profile / Chat)
+   NAVIGATION
 ========================================================= */
 
 function currentPage() {
   const hash = (location.hash || "").replace("#", "");
+  if (hash === "chat") return "chat";
   return ["coinflip", "values", "profile"].includes(hash) ? hash : "coinflip";
 }
 
@@ -218,10 +215,9 @@ function collectPages() {
   });
 
   const candidates = {
-    coinflip: ["coinflipSection", "coinflipPage", "page-coinflip", "coinflip", "coinflip-section"],
-    values: ["valuesSection", "valuesPage", "page-values", "values", "values-section"],
-    profile: ["profileSection", "profilePage", "page-profile", "profile", "profile-section"],
-    chat: ["chatSection", "chatPage", "page-chat", "chat-section"],
+    coinflip: ["coinflipSection", "coinflipPage", "page-coinflip", "coinflip-section"],
+    values: ["valuesSection", "valuesPage", "page-values", "values-section"],
+    profile: ["profileSection", "profilePage", "page-profile", "profile-section"],
   };
 
   Object.entries(candidates).forEach(([key, ids]) => {
@@ -242,7 +238,6 @@ function showPage(name) {
   const pages = collectPages();
 
   if (!pages.length) {
-    /* No recognizable section wrappers — never hide content. */
     $$("main section, main > div, main > article").forEach((section) => {
       section.style.display = "";
       section.classList.remove("hidden");
@@ -253,7 +248,6 @@ function showPage(name) {
   const target = pages.find((page) => page.key === name);
 
   if (!target) {
-    /* Target section unknown — keep everything visible. */
     pages.forEach(({ section }) => {
       section.style.display = "";
       section.classList.remove("hidden");
@@ -276,8 +270,79 @@ function showPage(name) {
 }
 
 /* =========================================================
-   LOADERS — PETS
+   PETS — container auto-detection + rendering
 ========================================================= */
+
+function petsContainers() {
+  const found = [];
+
+  const ids = [
+    "petsList", "valuesList", "petsGrid", "valuesGrid",
+    "petsContainer", "valuesContainer", "petValuesList", "allPetsList",
+  ];
+
+  ids.forEach((id) => {
+    const node = el(id);
+    if (node && !found.includes(node)) found.push(node);
+  });
+
+  if (!found.length) {
+    /* Fallback: the ".loading" placeholder that says values/pets */
+    document.querySelectorAll(".loading, .empty").forEach((node) => {
+      const text = (node.textContent || "").toLowerCase();
+      if (
+        text.includes("loading values") ||
+        text.includes("loading pets") ||
+        text.includes("no pets") ||
+        text.includes("no values")
+      ) {
+        const parent = node.parentElement;
+        if (parent && !found.includes(parent)) found.push(parent);
+      }
+    });
+  }
+
+  /* Last resort: any container that looks like a pet list */
+  if (!found.length) {
+    document
+      .querySelectorAll("[id*='pet' i], [id*='value' i], [class*='pet-list' i], [class*='value-list' i], [class*='pets-grid' i]")
+      .forEach((node) => {
+        if (node.closest("#createModal")) return;
+        if (node.closest("#historyModal")) return;
+        if (node.tagName === "DIV" || node.tagName === "UL" || node.tagName === "SECTION") {
+          if (!found.includes(node)) found.push(node);
+        }
+      });
+  }
+
+  return found;
+}
+
+function petValue(pet) {
+  if (!pet) return 0;
+  return Number(pet.value) || 0;
+}
+
+function sortPets(pets) {
+  return pets.slice().sort((a, b) => petValue(b) - petValue(a));
+}
+
+function petCardHtml(pet) {
+  return `
+  <div class="pet-card" title="${esc(pet.name)}">
+    <img
+      class="pet-image"
+      src="${esc(pet.image)}"
+      alt="${esc(pet.name)}"
+      loading="lazy"
+      onerror="this.style.visibility='hidden'"
+    >
+    <div class="pet-info">
+      <span class="pet-name">${esc(pet.name)}</span>
+      <span class="pet-value">${fmt(pet.value)}</span>
+    </div>
+  </div>`;
+}
 
 async function loadPets() {
   try {
@@ -294,83 +359,91 @@ async function loadPets() {
     renderPets();
   } catch (error) {
     console.error("Failed to load pets:", error);
-    const list = el("petsList");
-    if (list) {
-      list.innerHTML = `<div class="error">Could not load values: ${esc(error.message)}</div>`;
-    }
+    const containers = petsContainers();
+    containers.forEach((container) => {
+      container.innerHTML = `<div class="error">Could not load values: ${esc(error.message)}</div>`;
+    });
   }
-}
-
-function petValue(pet) {
-  if (!pet) return 0;
-  return Number(pet.value) || 0;
-}
-
-function sortPets(pets) {
-  return pets.slice().sort((a, b) => petValue(b) - petValue(a));
 }
 
 function renderPets() {
-  const list = el("petsList");
-  if (!list) return;
+  const containers = petsContainers();
 
-  if (!state.pets.length) {
-    list.innerHTML = `<div class="loading">No pets found.</div>`;
+  if (!containers.length) {
+    console.warn("ADMFLIP: could not find the pets list container.");
     return;
   }
 
-  list.innerHTML = sortPets(state.pets)
-    .map(
-      (pet) => `
-      <div class="pet-card" title="${esc(pet.name)}">
-        <img
-          class="pet-image"
-          src="${esc(pet.image)}"
-          alt="${esc(pet.name)}"
-          loading="lazy"
-          onerror="this.style.visibility='hidden'"
-        >
-        <div class="pet-info">
-          <span class="pet-name">${esc(pet.name)}</span>
-          <span class="pet-value">${fmt(pet.value)}</span>
-        </div>
-      </div>`
-    )
-    .join("");
+  const html = state.pets.length
+    ? sortPets(state.pets).map(petCardHtml).join("")
+    : `<div class="empty">No pets found.</div>`;
+
+  containers.forEach((container) => {
+    container.innerHTML = html;
+  });
 }
 
 /* =========================================================
-   LOADERS — COINFLIPS
+   COINFLIPS
 ========================================================= */
+
+function coinflipContainers() {
+  const found = [];
+
+  ["coinflipList", "openCoinflips", "coinflipsList", "activeCoinflips"].forEach((id) => {
+    const node = el(id);
+    if (node && !found.includes(node)) found.push(node);
+  });
+
+  if (!found.length) {
+    document.querySelectorAll(".loading, .empty").forEach((node) => {
+      const text = (node.textContent || "").toLowerCase();
+      if (text.includes("loading coinflips") || text.includes("open coinflips")) {
+        const parent = node.parentElement;
+        if (parent && !found.includes(parent)) found.push(parent);
+      }
+    });
+  }
+
+  return found;
+}
 
 async function loadCoinflips() {
   try {
     const data = await api(API.coinflips);
     state.coinflips = Array.isArray(data.coinflips) ? data.coinflips : [];
 
-    setTextAny(["statsTotalCoinflips", "totalCoinflips", "coinflipCount", "statsCoinflips"], data.total != null ? data.total : state.coinflips.length);
-    setTextAny(["statsTotalValue", "totalValue", "statsValue", "coinflipValue"], data.totalValue != null ? data.totalValue : 0);
+    setTextAny(
+      ["statsTotalCoinflips", "totalCoinflips", "coinflipCount", "statsCoinflips"],
+      data.total != null ? data.total : state.coinflips.length
+    );
+    setTextAny(
+      ["statsTotalValue", "totalValue", "statsValue", "coinflipValue"],
+      data.totalValue != null ? data.totalValue : 0
+    );
 
     renderCoinflips();
   } catch (error) {
     console.error("Failed to load coinflips:", error);
-    const list = el("coinflipList");
-    if (list) {
-      list.innerHTML = `<div class="error">Could not load coinflips: ${esc(error.message)}</div>`;
-    }
+    coinflipContainers().forEach((container) => {
+      container.innerHTML = `<div class="error">Could not load coinflips: ${esc(error.message)}</div>`;
+    });
   }
 }
 
 function renderCoinflips() {
-  const list = el("coinflipList");
-  if (!list) return;
+  const containers = coinflipContainers();
+  if (!containers.length) return;
 
   if (!state.coinflips.length) {
-    list.innerHTML = `<div class="empty">No open coinflips right now.</div>`;
+    const emptyHtml = `<div class="empty">No open coinflips right now.</div>`;
+    containers.forEach((container) => {
+      container.innerHTML = emptyHtml;
+    });
     return;
   }
 
-  list.innerHTML = state.coinflips
+  const html = state.coinflips
     .map((item) => {
       const petName = item.petName || item.name || "Unknown Pet";
       const petValue = Number(item.petValue != null ? item.petValue : item.value) || 0;
@@ -400,10 +473,14 @@ function renderCoinflips() {
       </button>`;
     })
     .join("");
+
+  containers.forEach((container) => {
+    container.innerHTML = html;
+  });
 }
 
 /* =========================================================
-   LOADERS — STATUS / ONLINE
+   STATUS / ONLINE
 ========================================================= */
 
 async function loadStatus() {
@@ -557,7 +634,7 @@ async function loadHistory() {
 }
 
 /* =========================================================
-   CREATE / JOIN COINFLIP MODAL
+   CREATE / JOIN MODAL
 ========================================================= */
 
 function resetCreateUI() {
@@ -801,20 +878,30 @@ async function sendChat(message) {
 function openChat() {
   const panel = el("chatPanel");
   if (!panel) return;
-  panel.classList.add("open");
+
+  panel.classList.add("open", "show", "active");
+  panel.style.display = "flex";
   loadChat();
 }
 
 function closeChat() {
   const panel = el("chatPanel");
-  if (panel) panel.classList.remove("open");
+  if (!panel) return;
+
+  panel.classList.remove("open", "show", "active");
+  panel.style.display = "";
+}
+
+function toggleChat() {
+  const panel = el("chatPanel");
+  if (!panel) return;
+
+  if (panel.classList.contains("open")) closeChat();
+  else openChat();
 }
 
 /* =========================================================
-   LOGIN FLOW — matches backend:
-   GET /user/:username  -> profile
-   GET /create          -> phrase
-   POST /check          -> { username, phrase } -> token
+   LOGIN FLOW
 ========================================================= */
 
 function openLoginModal() {
@@ -939,7 +1026,7 @@ async function verifyLogin() {
 ========================================================= */
 
 function wireEvents() {
-  /* Navigation (Coinflip / Values / Profile / Chat) */
+  /* ---- Navigation (Coinflip / Values / Profile / Chat) ---- */
   document.addEventListener("click", (event) => {
     const navButton = event.target.closest(".nav-item");
 
@@ -947,7 +1034,7 @@ function wireEvents() {
       const page = navButton.getAttribute("data-page");
 
       if (page === "chat") {
-        openChat();
+        toggleChat();
         return;
       }
 
@@ -961,19 +1048,49 @@ function wireEvents() {
 
       /* Nav buttons without data-page — treat Chat by label */
       if (navButton.textContent.trim().toLowerCase().includes("chat")) {
-        openChat();
+        toggleChat();
       }
       return;
     }
   });
 
+  /* ---- Chat: catch ANY chat trigger (id / class / data-attr / href / label) ---- */
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest(
+      'a, button, [role="button"], [data-chat], [data-open-chat]'
+    );
+
+    if (!trigger) return;
+    if (trigger.closest("#chatPanel")) return; /* panel internals handled separately */
+    if (trigger.classList && trigger.classList.contains("nav-item")) return; /* handled above */
+
+    const href = (trigger.getAttribute("href") || "").toLowerCase();
+    const text = (trigger.textContent || "").toLowerCase();
+    const id = (trigger.id || "").toLowerCase();
+    const cls = typeof trigger.className === "string" ? trigger.className.toLowerCase() : "";
+
+    const looksLikeChat =
+      href.includes("chat") ||
+      text.includes("chat") ||
+      id.includes("chat") ||
+      cls.includes("chat") ||
+      trigger.hasAttribute("data-chat") ||
+      trigger.hasAttribute("data-open-chat");
+
+    if (!looksLikeChat) return;
+
+    event.preventDefault();
+    toggleChat();
+  });
+
+  /* ---- Hash changes ---- */
   window.addEventListener("hashchange", () => {
     const page = currentPage();
     if (page === "chat") openChat();
     else showPage(page);
   });
 
-  /* Quick actions (right side) */
+  /* ---- Quick actions (right side) ---- */
   const quickCreate = el("quickCreateBtn");
   if (quickCreate) quickCreate.addEventListener("click", openCreateModal);
 
@@ -985,7 +1102,7 @@ function wireEvents() {
     });
   }
 
-  /* Modals — close buttons */
+  /* ---- Modals: close buttons ---- */
   const closeLogin = el("closeLogin");
   if (closeLogin) closeLogin.addEventListener("click", () => closeModal(el("loginModal")));
 
@@ -995,7 +1112,7 @@ function wireEvents() {
   const closeHistory = el("closeHistoryModal");
   if (closeHistory) closeHistory.addEventListener("click", () => closeModal(el("historyModal")));
 
-  /* Modals — click outside closes */
+  /* ---- Modals: click outside closes ---- */
   $$(".modal").forEach((modal) => {
     modal.addEventListener("click", (event) => {
       if (event.target === modal) closeModal(modal);
@@ -1009,7 +1126,7 @@ function wireEvents() {
     }
   });
 
-  /* Create/Join modal interactions */
+  /* ---- Create/Join modal interactions ---- */
   const createModal = el("createModal");
   if (createModal) {
     createModal.addEventListener("click", (event) => {
@@ -1030,22 +1147,17 @@ function wireEvents() {
     });
   }
 
-  /* Coinflip list — click a card to join */
-  const coinflipList = el("coinflipList");
-  if (coinflipList) {
-    coinflipList.addEventListener("click", (event) => {
-      const card = event.target.closest(".coinflip-card");
-      if (card) openJoinModal(card.getAttribute("data-coinflip-id"));
-    });
-  }
+  /* ---- Coinflip list: click a card to join ---- */
+  document.addEventListener("click", (event) => {
+    const card = event.target.closest(".coinflip-card");
+    if (card) openJoinModal(card.getAttribute("data-coinflip-id"));
+  });
 
-  /* Chat */
-  const chatToggle = $("[data-chat], #chatToggle, #chatBtn");
-  if (chatToggle) chatToggle.addEventListener("click", openChat);
-
+  /* ---- Chat: close button ---- */
   const chatClose = el("chatClose");
   if (chatClose) chatClose.addEventListener("click", closeChat);
 
+  /* ---- Chat: send form ---- */
   const chatForm = el("panelChatForm");
   if (chatForm) {
     chatForm.addEventListener("submit", (event) => {
@@ -1061,7 +1173,7 @@ function wireEvents() {
     });
   }
 
-  /* Login */
+  /* ---- Login ---- */
   const loginBtn = $("[data-login], #loginBtn, #openLogin, .login-btn");
   if (loginBtn) loginBtn.addEventListener("click", openLoginModal);
 
