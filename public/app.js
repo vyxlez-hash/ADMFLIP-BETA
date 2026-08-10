@@ -1,23 +1,21 @@
 (() => {
   "use strict";
 
-  /* =====================================================
-     CONFIG
-  ===================================================== */
+ /* =====================================================
+CONFIG
+===================================================== */
 
-  const DEFAULT_BACKEND =
-    "https://admflip-beta-production-b837.up.railway.app";
+const API_BASE = "https://admflip-beta.onrender.com";
 
-  const BACKEND = (
-    new URLSearchParams(location.search).get("backend") ||
-    (window.ADMFLIP_CONFIG && window.ADMFLIP_CONFIG.backend) ||
-    DEFAULT_BACKEND
-  ).replace(/\/+$/, "");
+const BACKEND = (
+  new URLSearchParams(location.search).get("backend") ||
+  (window.ADMFLIP_CONFIG && window.ADMFLIP_CONFIG.backend) ||
+  API_BASE
+).replace(/\/+$/, "");
 
-  window.ADMFLIP = {
-    backend: BACKEND
-  };
-
+window.ADMFLIP = {
+  backend: BACKEND
+};
   /* =====================================================
      STATE
   ===================================================== */
