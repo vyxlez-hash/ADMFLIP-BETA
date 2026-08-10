@@ -1,27 +1,30 @@
 "use strict";
 
 /* =========================================================
-   API CONFIG — change endpoints here if your server differs
+   ADMFLIP FRONTEND — full drop-in for public/script.js
+   Matches backend v3 endpoints:
+   /pets  /coinflips  /coinflips/:id/accept  /status
+   /chat/messages  /chat/online  /account  /history
+   /user/:username  /create  /check  /logout
 ========================================================= */
 
 const API = {
   pets: "/pets",
   coinflips: "/coinflips",
-  createCoinflip: "/coinflips",
-  joinCoinflip: (id) => `/coinflips/${id}/join`,
-  joinCoinflipAlt: (id) => `/coinflips/${id}/accept`,
+  coinflipAccept: (id) => `/coinflips/${id}/accept`,
   chatMessages: "/chat/messages",
-  sendChat: "/chat",
+  chatSend: "/chat/messages",
   chatOnline: "/chat/online",
-  online: "/online",
   account: "/account",
   history: "/history",
-  login: "/login",
-  verify: "/verify",
   logout: "/logout",
-  inventory: "/user/inventory",
+  userLookup: (username) => `/user/${encodeURIComponent(username)}`,
+  createPhrase: "/create",
+  check: "/check",
   status: "/status",
 };
+
+const TOKEN_KEY = "admflip_token";
 
 /* =========================================================
    HELPERS
@@ -43,15 +46,17 @@ function esc(value) {
     .replace(/'/g, "&#39;");
 }
 
-/* Numbers always use "." as the decimal separator — never "3,4". */
+/* Numbers always use "." as decimal separator — never "3,4". */
 function fmt(value) {
   const n = Number(value);
-  if (!isFinite(n)) return "0";
+  if (!Number.isFinite(n)) return "0";
 
   if (Number.isInteger(n)) return n.toLocaleString("en-US");
 
   const rounded = Math.round(n * 1000) / 1000;
-  return String(rounded).replace(".", ".");
+  return rounded.toLocaleString("en-US", {
+    maximumFractionDigits: 3,
+  });
 }
 
 function timeAgo(timestamp) {
@@ -61,22 +66,46 @@ function timeAgo(timestamp) {
 
   if (seconds < 5) return "just now";
   if (seconds < 60) return `${seconds}s ago`;
+
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
+
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
+
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
 
+function getToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function setToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch (_) {
+    /* storage unavailable — session still works in memory */
+  }
+}
+
 async function api(path, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  const token = getToken();
+  if (token) headers["Authorization"] = "Bearer " + token;
+
   const config = {
     method: options.method || "GET",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
+    headers,
   };
 
   if (options.body !== undefined) {
@@ -107,15 +136,15 @@ async function api(path, options = {}) {
 
 let toastTimer = null;
 function toast(message, type = "info") {
-  const toastEl = el("toast");
-  if (!toastEl) return;
+  const node = el("toast");
+  if (!node) return;
 
-  toastEl.textContent = message;
-  toastEl.className = "toast show " + type;
+  node.textContent = message;
+  node.className = "toast show " + type;
 
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
-    toastEl.className = "toast";
+    node.className = "toast";
   }, 3500);
 }
 
@@ -140,58 +169,114 @@ function closeModal(modal) {
   document.body.classList.remove("modal-open");
 }
 
+function setTextAny(ids, value) {
+  ids.forEach((id) => {
+    const node = el(id);
+    if (node) node.textContent = String(value);
+  });
+}
+
 /* =========================================================
    STATE
 ========================================================= */
 
 const state = {
   pets: [],
-  petsById: {},
+  petsByName: {},
   coinflips: [],
   user: null,
-  selectedPetId: null,
-  selectedSide: null,
   history: [],
+  mode: "create", // "create" | "join"
+  joinTargetId: null,
+  selectedPetName: null,
+  selectedSide: null,
+  verifyUsername: null,
+  verifyPhrase: null,
   loadedOnce: false,
 };
 
 /* =========================================================
-   NAVIGATION (Coinflip / Values / Profile)
+   NAVIGATION (Coinflip / Values / Profile / Chat)
 ========================================================= */
-
-function collectPages() {
-  const pages = [];
-
-  $$(".page, [data-page-section], [id^='page-']").forEach((section) => {
-    const key =
-      section.getAttribute("data-page") ||
-      (section.id || "").replace(/^page-/, "");
-    if (key) pages.push({ key, section });
-  });
-
-  return pages;
-}
-
-function showPage(name) {
-  const pages = collectPages();
-
-  pages.forEach(({ key, section }) => {
-    const isActive = key === name;
-    section.style.display = isActive ? "" : "none";
-  });
-
-  $$(".nav-item").forEach((button) => {
-    button.classList.toggle("active", button.getAttribute("data-page") === name);
-  });
-}
 
 function currentPage() {
   const hash = (location.hash || "").replace("#", "");
   return ["coinflip", "values", "profile"].includes(hash) ? hash : "coinflip";
 }
 
+function collectPages() {
+  const found = new Map();
+
+  $$("[data-page-section]").forEach((section) => {
+    const key = String(section.getAttribute("data-page-section") || "").trim();
+    if (key) found.set(key, section);
+  });
+
+  $$(".page[data-page]").forEach((section) => {
+    const key = String(section.getAttribute("data-page") || "").trim();
+    if (key) found.set(key, section);
+  });
+
+  const candidates = {
+    coinflip: ["coinflipSection", "coinflipPage", "page-coinflip", "coinflip", "coinflip-section"],
+    values: ["valuesSection", "valuesPage", "page-values", "values", "values-section"],
+    profile: ["profileSection", "profilePage", "page-profile", "profile", "profile-section"],
+    chat: ["chatSection", "chatPage", "page-chat", "chat-section"],
+  };
+
+  Object.entries(candidates).forEach(([key, ids]) => {
+    if (found.has(key)) return;
+    for (const id of ids) {
+      const node = el(id);
+      if (node) {
+        found.set(key, node);
+        break;
+      }
+    }
+  });
+
+  return Array.from(found.entries()).map(([key, section]) => ({ key, section }));
+}
+
+function showPage(name) {
+  const pages = collectPages();
+
+  if (!pages.length) {
+    /* No recognizable section wrappers — never hide content. */
+    $$("main section, main > div, main > article").forEach((section) => {
+      section.style.display = "";
+      section.classList.remove("hidden");
+    });
+    return;
+  }
+
+  const target = pages.find((page) => page.key === name);
+
+  if (!target) {
+    /* Target section unknown — keep everything visible. */
+    pages.forEach(({ section }) => {
+      section.style.display = "";
+      section.classList.remove("hidden");
+    });
+    return;
+  }
+
+  pages.forEach(({ key, section }) => {
+    const isActive = key === name;
+
+    if (isActive) {
+      section.style.display = "";
+      section.classList.remove("hidden");
+      section.classList.add("active");
+    } else {
+      section.style.display = "none";
+      section.classList.remove("active");
+    }
+  });
+}
+
 /* =========================================================
-   LOADERS
+   LOADERS — PETS
 ========================================================= */
 
 async function loadPets() {
@@ -199,9 +284,11 @@ async function loadPets() {
     const data = await api(API.pets);
     state.pets = Array.isArray(data.pets) ? data.pets : [];
 
-    state.petsById = {};
+    state.petsByName = {};
     state.pets.forEach((pet) => {
-      if (pet && pet.id) state.petsById[pet.id] = pet;
+      if (pet && pet.name) {
+        state.petsByName[String(pet.name).trim().toLowerCase()] = pet;
+      }
     });
 
     renderPets();
@@ -235,7 +322,7 @@ function renderPets() {
   list.innerHTML = sortPets(state.pets)
     .map(
       (pet) => `
-      <div class="pet-card" data-pet-id="${esc(pet.id)}" title="${esc(pet.name)}">
+      <div class="pet-card" title="${esc(pet.name)}">
         <img
           class="pet-image"
           src="${esc(pet.image)}"
@@ -252,16 +339,17 @@ function renderPets() {
     .join("");
 }
 
+/* =========================================================
+   LOADERS — COINFLIPS
+========================================================= */
+
 async function loadCoinflips() {
   try {
     const data = await api(API.coinflips);
     state.coinflips = Array.isArray(data.coinflips) ? data.coinflips : [];
 
-    const total = Number(data.total) || state.coinflips.length;
-    const totalValue = Number(data.totalValue) || 0;
-
-    setText("statsTotalCoinflips", fmt(total));
-    setText("statsTotalValue", fmt(totalValue));
+    setTextAny(["statsTotalCoinflips", "totalCoinflips", "coinflipCount", "statsCoinflips"], data.total != null ? data.total : state.coinflips.length);
+    setTextAny(["statsTotalValue", "totalValue", "statsValue", "coinflipValue"], data.totalValue != null ? data.totalValue : 0);
 
     renderCoinflips();
   } catch (error) {
@@ -271,39 +359,6 @@ async function loadCoinflips() {
       list.innerHTML = `<div class="error">Could not load coinflips: ${esc(error.message)}</div>`;
     }
   }
-}
-
-function coinflipPet(item) {
-  const petId = item.petId || item.pet || item.itemId || item.item;
-  const direct = item.pet && typeof item.pet === "object" ? item.pet : null;
-
-  if (direct) return direct;
-  if (petId && state.petsById[petId]) return state.petsById[petId];
-  return null;
-}
-
-function coinflipCreator(item) {
-  const owner = item.owner || item.creator || item.user || {};
-  if (typeof owner === "object") {
-    return {
-      name: owner.username || owner.displayName || owner.name || "Unknown",
-      avatar: owner.avatar || owner.image || "",
-    };
-  }
-  return { name: String(owner || "Unknown"), avatar: item.avatar || item.creatorAvatar || "" };
-}
-
-function coinflipSide(item) {
-  const side = String(item.side || "").toLowerCase();
-  if (side === "heads" || side === "tails") return side;
-
-  if (item.heads && !item.tails) return "heads";
-  if (item.tails && !item.heads) return "tails";
-  return "";
-}
-
-function coinflipId(item) {
-  return item.id || item._id || "";
 }
 
 function renderCoinflips() {
@@ -317,31 +372,29 @@ function renderCoinflips() {
 
   list.innerHTML = state.coinflips
     .map((item) => {
-      const pet = coinflipPet(item);
-      const creator = coinflipCreator(item);
-      const side = coinflipSide(item);
-      const id = coinflipId(item);
+      const petName = item.petName || item.name || "Unknown Pet";
+      const petValue = Number(item.petValue != null ? item.petValue : item.value) || 0;
+      const image = item.image || "";
+      const side = String(item.side || "").toLowerCase();
+      const creator = item.username || "Player";
+      const avatar = item.avatar || "/logo.png";
+      const id = item.id || "";
 
       return `
       <button type="button" class="coinflip-card" data-coinflip-id="${esc(id)}">
         <img
           class="coinflip-pet-image"
-          src="${esc(pet ? pet.image : item.image || "")}"
-          alt="${esc(pet ? pet.name : "Pet")}"
+          src="${esc(image)}"
+          alt="${esc(petName)}"
           loading="lazy"
           onerror="this.style.visibility='hidden'"
         >
         <div class="coinflip-info">
-          <span class="coinflip-pet-name">${esc(pet ? pet.name : item.name || "Unknown Pet")}</span>
-          <span class="coinflip-value">${fmt(pet ? pet.value : item.value)}</span>
+          <span class="coinflip-pet-name">${esc(petName)}</span>
+          <span class="coinflip-value">${fmt(petValue)}</span>
           <span class="coinflip-meta">
-            <img
-              class="coinflip-avatar"
-              src="${esc(creator.avatar)}"
-              alt=""
-              onerror="this.style.display='none'"
-            >
-            ${esc(creator.name)} · ${side ? esc(side) : "Any side"} · ${timeAgo(item.createdAt)}
+            <img class="coinflip-avatar" src="${esc(avatar)}" alt="" onerror="this.style.display='none'">
+            ${esc(creator)} · ${side === "heads" || side === "tails" ? esc(side) : "Any side"} · ${timeAgo(item.createdAt)}
           </span>
         </div>
       </button>`;
@@ -349,37 +402,33 @@ function renderCoinflips() {
     .join("");
 }
 
+/* =========================================================
+   LOADERS — STATUS / ONLINE
+========================================================= */
+
 async function loadStatus() {
   try {
     const data = await api(API.status);
 
     if (data && typeof data.online === "boolean") {
-      setText("onlineStatus", data.online ? "Live" : "Offline");
+      setTextAny(["onlineStatus", "liveStatus"], data.online ? "LIVE" : "OFFLINE");
     }
     if (data && data.announcement) {
-      setText("announcement", data.announcement);
+      setTextAny(["announcement"], data.announcement);
     }
   } catch (_) {
     /* status is optional */
   }
 
-  /* try to fetch an online user count, silently ignore failures */
   try {
     const data = await api(API.chatOnline);
-    if (data && data.online != null) setText("panelOnlineCount", fmt(data.online));
-  } catch (_) {
-    try {
-      const data = await api(API.online);
-      if (data && data.online != null) setText("statsOnline", fmt(data.online));
-    } catch (_) {
-      /* no online endpoint available */
+    if (data && data.online != null) {
+      setTextAny(["statsOnline", "onlineCount", "onlineUsers"], data.online);
+      setTextAny(["panelOnlineCount"], data.online);
     }
+  } catch (_) {
+    /* no online endpoint available */
   }
-}
-
-function setText(id, value) {
-  const node = el(id);
-  if (node) node.textContent = String(value);
 }
 
 /* =========================================================
@@ -412,7 +461,8 @@ function renderAccount() {
     button.style.display = loggedIn ? "" : "none";
   });
 
-  const profile = el("profileContent") || $(".profile-content");
+  const profile = el("profileContent") || document.querySelector(".profile-content");
+
   if (profile) {
     if (!loggedIn) {
       profile.innerHTML = `
@@ -423,12 +473,31 @@ function renderAccount() {
     } else {
       profile.innerHTML = `
         <div class="panel">
-          <img class="profile-avatar" src="${esc(user.avatar || "/logo.png")}" alt="Avatar">
+          <img class="profile-avatar" src="${esc(user.avatar || "/logo.png")}" alt="Avatar" onerror="this.style.display='none'">
           <h2>${esc(user.displayName || user.username || "Player")}</h2>
           <p class="muted">@${esc(user.username || user.id || "roblox")}</p>
+          ${user.verified ? '<span class="verified-badge">VERIFIED</span>' : ""}
+          <div class="profile-stats">
+            <div><b>${fmt(user.balance)}</b><span>Balance</span></div>
+            <div><b>${fmt(user.wagered)}</b><span>Wagered</span></div>
+            <div><b>${Number(user.wins || 0)}</b><span>Wins</span></div>
+          </div>
         </div>`;
     }
   }
+}
+
+async function logout() {
+  try {
+    await api(API.logout, { method: "POST", body: {} });
+  } catch (_) {
+    /* logout never hard-fails the UI */
+  }
+
+  setToken("");
+  state.user = null;
+  renderAccount();
+  toast("Signed out.");
 }
 
 /* =========================================================
@@ -452,9 +521,7 @@ async function loadHistory() {
       ? data.history
       : Array.isArray(data.coinflips)
         ? data.coinflips
-        : Array.isArray(data.items)
-          ? data.items
-          : [];
+        : [];
 
     if (!state.history.length) {
       list.innerHTML = `<div class="empty">No coinflips yet.</div>`;
@@ -463,17 +530,20 @@ async function loadHistory() {
 
     list.innerHTML = state.history
       .map((item) => {
-        const pet = coinflipPet(item);
-        const side = coinflipSide(item);
-        const result = item.result || item.status || (item.won ? "Won" : item.lost ? "Lost" : "");
-        const opponent = item.opponent || "";
+        const pet = item.myPet || {};
+        const petName = pet.name || item.petName || item.name || "Unknown Pet";
+        const petValue = Number(pet.value != null ? pet.value : item.petValue) || 0;
+        const image = pet.image || item.image || "";
+        const side = item.mySide || item.side || "";
+        const result = String(item.result || item.status || "").toUpperCase();
+        const opponent = item.opponent && item.opponent.username ? item.opponent.username : "";
 
         return `
         <div class="history-item">
-          <img class="history-pet-image" src="${esc(pet ? pet.image : item.image || "")}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+          <img class="history-pet-image" src="${esc(image)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
           <div class="history-info">
-            <span class="history-pet-name">${esc(pet ? pet.name : item.name || "Unknown Pet")}</span>
-            <span class="history-value">${fmt(pet ? pet.value : item.value)}</span>
+            <span class="history-pet-name">${esc(petName)}</span>
+            <span class="history-value">${fmt(petValue)}</span>
             <span class="history-meta">
               ${side ? esc(side) + " · " : ""}${esc(result)}${opponent ? " vs " + esc(opponent) : ""} · ${timeAgo(item.createdAt)}
             </span>
@@ -487,55 +557,85 @@ async function loadHistory() {
 }
 
 /* =========================================================
-   CREATE COINFLIP MODAL
+   CREATE / JOIN COINFLIP MODAL
 ========================================================= */
 
-async function openCreateModal() {
+function resetCreateUI() {
   const modal = el("createModal");
   if (!modal) return;
 
+  const title = el("createModalTitle");
+  const inventory = el("createInventory");
+  const sideArea = el("sideArea");
+  const postBtn = el("postCoinflipBtn");
+
+  if (title) {
+    title.textContent = state.mode === "join" ? "Join Coinflip" : "Choose Your Pet";
+  }
+
+  if (inventory) {
+    inventory.innerHTML = `<div class="loading">Loading inventory...</div>`;
+  }
+
+  if (sideArea) sideArea.classList.add("hidden");
+
+  if (postBtn) {
+    postBtn.textContent = state.mode === "join" ? "Join Coinflip" : "Create Coinflip";
+  }
+
+  $$(".inventory-pet").forEach((card) => card.classList.remove("selected"));
+  $$(".side-btn").forEach((button) => button.classList.remove("active"));
+}
+
+function openCreateModal() {
   if (!state.user) {
     toast("Sign in with Roblox first.", "error");
     openLoginModal();
     return;
   }
 
-  state.selectedPetId = null;
+  state.mode = "create";
+  state.joinTargetId = null;
+  state.selectedPetName = null;
   state.selectedSide = null;
 
-  const inventory = el("createInventory");
-  const sideArea = el("sideArea");
+  resetCreateUI();
+  openModal(el("createModal"));
+  renderInventory();
+}
 
-  if (inventory) {
-    inventory.innerHTML = `<div class="loading">Loading inventory...</div>`;
+function openJoinModal(id) {
+  if (!state.user) {
+    toast("Sign in with Roblox first.", "error");
+    openLoginModal();
+    return;
   }
-  if (sideArea) sideArea.classList.add("hidden");
 
-  openModal(modal);
-  await renderInventory();
+  state.mode = "join";
+  state.joinTargetId = id;
+  state.selectedPetName = null;
+  state.selectedSide = null;
+
+  resetCreateUI();
+  openModal(el("createModal"));
+  renderInventory();
+}
+
+function inventoryPets() {
+  const owned = Array.isArray(state.user && state.user.inventory)
+    ? state.user.inventory
+    : [];
+
+  if (owned.length) return owned;
+
+  return state.pets;
 }
 
 async function renderInventory() {
   const inventory = el("createInventory");
   if (!inventory) return;
 
-  let pickable = [];
-
-  try {
-    const data = await api(API.inventory);
-    const pets = data.pets || data.items || data.inventory || [];
-
-    if (Array.isArray(pets) && pets.length) {
-      pickable = pets.map((pet) => {
-        if (typeof pet === "string") return state.petsById[pet] || { id: pet, name: pet, value: 0, image: "" };
-        return pet;
-      });
-    }
-  } catch (_) {
-    /* fall back to the full values list below */
-  }
-
-  if (!pickable.length) pickable = state.pets;
+  const pickable = inventoryPets();
 
   if (!pickable.length) {
     inventory.innerHTML = `<div class="empty">No pets available.</div>`;
@@ -548,7 +648,7 @@ async function renderInventory() {
       <button
         type="button"
         class="pet-card inventory-pet"
-        data-pet-id="${esc(pet.id)}"
+        data-pet-name="${esc(pet.name)}"
         title="${esc(pet.name)}"
       >
         <img class="pet-image" src="${esc(pet.image)}" alt="${esc(pet.name)}" loading="lazy" onerror="this.style.visibility='hidden'">
@@ -561,19 +661,18 @@ async function renderInventory() {
     .join("");
 }
 
-function selectPet(petId) {
-  state.selectedPetId = petId;
+function selectPet(petName) {
+  state.selectedPetName = petName;
 
   $$(".inventory-pet").forEach((card) => {
-    card.classList.toggle("selected", card.getAttribute("data-pet-id") === petId);
+    card.classList.toggle("selected", card.getAttribute("data-pet-name") === petName);
   });
 
   const sideArea = el("sideArea");
   if (sideArea) sideArea.classList.remove("hidden");
 
-  const pet = state.petsById[petId];
   const title = el("createModalTitle");
-  if (title && pet) title.textContent = `Flip ${pet.name}`;
+  if (title) title.textContent = `${state.mode === "join" ? "Join" : "Flip"} ${petName}`;
 }
 
 function selectSide(side) {
@@ -588,62 +687,41 @@ async function postCoinflip() {
   const button = el("postCoinflipBtn");
   if (!button) return;
 
-  if (!state.selectedPetId) {
+  if (!state.selectedPetName) {
     toast("Pick a pet first.", "error");
     return;
   }
+
   if (!state.selectedSide) {
     toast("Choose Heads or Tails.", "error");
     return;
   }
 
   button.disabled = true;
-  button.textContent = "Creating...";
+  button.textContent = state.mode === "join" ? "Joining..." : "Creating...";
 
   try {
-    await api(API.createCoinflip, {
-      method: "POST",
-      body: { petId: state.selectedPetId, side: state.selectedSide },
-    });
+    if (state.mode === "join") {
+      await api(API.coinflipAccept(state.joinTargetId), {
+        method: "POST",
+        body: { petName: state.selectedPetName, side: state.selectedSide },
+      });
+      toast("Joined the coinflip!", "success");
+    } else {
+      await api(API.coinflips, {
+        method: "POST",
+        body: { petName: state.selectedPetName, side: state.selectedSide },
+      });
+      toast("Coinflip created!", "success");
+    }
 
-    toast("Coinflip created!", "success");
     closeModal(el("createModal"));
     loadCoinflips();
   } catch (error) {
     toast(error.message, "error");
   } finally {
     button.disabled = false;
-    button.textContent = "Create Coinflip";
-  }
-}
-
-/* =========================================================
-   JOIN COINFLIP
-========================================================= */
-
-async function joinCoinflip(id) {
-  if (!state.user) {
-    toast("Sign in with Roblox first.", "error");
-    openLoginModal();
-    return;
-  }
-
-  try {
-    await api(API.joinCoinflip(id), { method: "POST", body: {} });
-    toast("Joined the coinflip!", "success");
-    loadCoinflips();
-  } catch (error) {
-    if (error.status === 404) {
-      try {
-        await api(API.joinCoinflipAlt(id), { method: "POST", body: {} });
-        toast("Joined the coinflip!", "success");
-        loadCoinflips();
-        return;
-      } catch (_) {
-        /* fall through */
-      }
-    }
-    toast(error.message, "error");
+    button.textContent = state.mode === "join" ? "Join Coinflip" : "Create Coinflip";
   }
 }
 
@@ -669,7 +747,7 @@ async function loadChat() {
           state.user.id &&
           String(message.robloxId) === String(state.user.id);
 
-        const username = message.username || message.user || "Unknown";
+        const username = message.username || "Unknown";
         const avatar = message.avatar || "/logo.png";
         const text = message.message || message.text || "";
         const pinned = message.pinned || message.type === "announcement";
@@ -708,7 +786,10 @@ async function sendChat(message) {
   }
 
   try {
-    await api(API.sendChat, { method: "POST", body: { message } });
+    await api(API.chatSend, {
+      method: "POST",
+      body: { message: message.slice(0, 250) },
+    });
     loadChat();
     return true;
   } catch (error) {
@@ -730,7 +811,10 @@ function closeChat() {
 }
 
 /* =========================================================
-   LOGIN FLOW
+   LOGIN FLOW — matches backend:
+   GET /user/:username  -> profile
+   GET /create          -> phrase
+   POST /check          -> { username, phrase } -> token
 ========================================================= */
 
 function openLoginModal() {
@@ -769,27 +853,33 @@ async function searchUsername(username) {
   if (message) message.textContent = "";
 
   try {
-    const data = await api(API.login, { method: "POST", body: { username } });
+    /* 1. Fetch the Roblox profile */
+    const userData = await api(API.userLookup(username));
+    const profileUser = (userData && userData.user) || {};
+
+    /* 2. Get a fresh verification phrase */
+    const phraseData = await api(API.createPhrase);
+    const phraseText = (phraseData && phraseData.phrase) || "";
+
+    state.verifyUsername = username;
+    state.verifyPhrase = phraseText;
 
     if (profile) {
       profile.innerHTML = `
         <div class="login-profile-card">
-          <img class="login-profile-avatar" src="${esc((data.profile && data.profile.avatar) || data.avatar || "/logo.png")}" alt="" onerror="this.style.display='none'">
+          <img class="login-profile-avatar" src="${esc(profileUser.avatar || "/logo.png")}" alt="" onerror="this.style.display='none'">
           <div>
-            <b>${esc((data.profile && (data.profile.displayName || data.profile.username)) || data.displayName || username)}</b>
-            <div class="muted">@${esc((data.profile && data.profile.username) || username)}</div>
+            <b>${esc(profileUser.displayName || profileUser.username || username)}</b>
+            <div class="muted">@${esc(profileUser.username || username)}</div>
           </div>
         </div>`;
       profile.classList.remove("hidden");
     }
 
-    const phraseText =
-      data.phrase || (data.profile && data.profile.phrase) || data.verificationCode || "";
-
     if (phrase && phraseText) {
       phrase.innerHTML = `
         <div class="phrase-box">
-          <p class="muted">Add this phrase to your Roblox About/Bio, then verify:</p>
+          <p class="muted">Put this phrase in your Roblox About/Bio, then verify:</p>
           <code class="phrase-code">${esc(phraseText)}</code>
         </div>`;
       phrase.classList.remove("hidden");
@@ -806,17 +896,30 @@ async function searchUsername(username) {
   }
 }
 
-async function verifyLogin(username) {
+async function verifyLogin() {
   const button = el("verify");
   const message = el("loginMessage");
   if (!button) return;
+
+  if (!state.verifyUsername || !state.verifyPhrase) {
+    toast("Search a username first.", "error");
+    return;
+  }
 
   button.disabled = true;
   button.textContent = "Verifying...";
   if (message) message.textContent = "";
 
   try {
-    await api(API.verify, { method: "POST", body: { username } });
+    const data = await api(API.check, {
+      method: "POST",
+      body: {
+        username: state.verifyUsername,
+        phrase: state.verifyPhrase,
+      },
+    });
+
+    if (data && data.token) setToken(data.token);
 
     toast("Signed in!", "success");
     closeModal(el("loginModal"));
@@ -831,33 +934,43 @@ async function verifyLogin(username) {
   }
 }
 
-async function logout() {
-  try {
-    await api(API.logout, { method: "POST", body: {} });
-  } catch (_) {
-    /* logout should never hard-fail the UI */
-  }
-
-  state.user = null;
-  renderAccount();
-  toast("Signed out.");
-}
-
 /* =========================================================
    WIRING / EVENTS
 ========================================================= */
 
 function wireEvents() {
-  /* Navigation */
+  /* Navigation (Coinflip / Values / Profile / Chat) */
   document.addEventListener("click", (event) => {
-    const navButton = event.target.closest(".nav-item[data-page]");
+    const navButton = event.target.closest(".nav-item");
+
     if (navButton) {
       const page = navButton.getAttribute("data-page");
-      showPage(page);
-      if (page === "values") loadPets();
-      if (page === "profile") loadAccount();
+
+      if (page === "chat") {
+        openChat();
+        return;
+      }
+
+      if (page) {
+        showPage(page);
+        history.replaceState(null, "", "#" + page);
+        if (page === "values") loadPets();
+        if (page === "profile") loadAccount();
+        return;
+      }
+
+      /* Nav buttons without data-page — treat Chat by label */
+      if (navButton.textContent.trim().toLowerCase().includes("chat")) {
+        openChat();
+      }
       return;
     }
+  });
+
+  window.addEventListener("hashchange", () => {
+    const page = currentPage();
+    if (page === "chat") openChat();
+    else showPage(page);
   });
 
   /* Quick actions (right side) */
@@ -865,12 +978,14 @@ function wireEvents() {
   if (quickCreate) quickCreate.addEventListener("click", openCreateModal);
 
   const quickHistory = el("quickHistoryBtn");
-  if (quickHistory) quickHistory.addEventListener("click", () => {
-    openModal(el("historyModal"));
-    loadHistory();
-  });
+  if (quickHistory) {
+    quickHistory.addEventListener("click", () => {
+      openModal(el("historyModal"));
+      loadHistory();
+    });
+  }
 
-  /* Modals: close buttons */
+  /* Modals — close buttons */
   const closeLogin = el("closeLogin");
   if (closeLogin) closeLogin.addEventListener("click", () => closeModal(el("loginModal")));
 
@@ -880,7 +995,7 @@ function wireEvents() {
   const closeHistory = el("closeHistoryModal");
   if (closeHistory) closeHistory.addEventListener("click", () => closeModal(el("historyModal")));
 
-  /* Modals: click outside closes */
+  /* Modals — click outside closes */
   $$(".modal").forEach((modal) => {
     modal.addEventListener("click", (event) => {
       if (event.target === modal) closeModal(modal);
@@ -894,13 +1009,13 @@ function wireEvents() {
     }
   });
 
-  /* Create modal: pick pet / side / post */
+  /* Create/Join modal interactions */
   const createModal = el("createModal");
   if (createModal) {
     createModal.addEventListener("click", (event) => {
       const petCard = event.target.closest(".inventory-pet");
       if (petCard) {
-        selectPet(petCard.getAttribute("data-pet-id"));
+        selectPet(petCard.getAttribute("data-pet-name"));
         return;
       }
 
@@ -915,12 +1030,12 @@ function wireEvents() {
     });
   }
 
-  /* Coinflip list: join on card click */
+  /* Coinflip list — click a card to join */
   const coinflipList = el("coinflipList");
   if (coinflipList) {
     coinflipList.addEventListener("click", (event) => {
       const card = event.target.closest(".coinflip-card");
-      if (card) joinCoinflip(card.getAttribute("data-coinflip-id"));
+      if (card) openJoinModal(card.getAttribute("data-coinflip-id"));
     });
   }
 
@@ -946,7 +1061,7 @@ function wireEvents() {
     });
   }
 
-  /* Login modal */
+  /* Login */
   const loginBtn = $("[data-login], #loginBtn, #openLogin, .login-btn");
   if (loginBtn) loginBtn.addEventListener("click", openLoginModal);
 
@@ -964,12 +1079,7 @@ function wireEvents() {
   }
 
   const verifyBtn = el("verify");
-  if (verifyBtn) {
-    verifyBtn.addEventListener("click", () => {
-      const input = el("username");
-      verifyLogin(input ? input.value.trim() : "");
-    });
-  }
+  if (verifyBtn) verifyBtn.addEventListener("click", verifyLogin);
 }
 
 /* =========================================================
@@ -995,14 +1105,13 @@ function init() {
   try {
     wireEvents();
 
-    showPage(currentPage());
+    const page = currentPage();
+    if (page === "chat") openChat();
+    else showPage(page);
 
     loadPets();
     loadAccount();
     startPolling();
-
-    if (location.hash === "#values") loadPets();
-    if (location.hash === "#profile") loadAccount();
   } catch (error) {
     console.error("Init error:", error);
   } finally {
