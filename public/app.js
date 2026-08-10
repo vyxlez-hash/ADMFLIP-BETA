@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const DEFAULT_BACKEND =
-    "https://admflip-beta-production-b837.up.railway.app";
+ const DEFAULT_BACKEND =
+  "https://admflip-beta.onrender.com";
 
   const BACKEND = (
     new URLSearchParams(location.search).get("backend") ||
