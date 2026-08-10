@@ -55,6 +55,25 @@ body {
 
   overflow-x: hidden;
 }
+.deposit-withdraw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #5865f2;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  transition: 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.deposit-withdraw-btn:hover {
+  background: #4752c4;
+  transform: translateY(-1px);
+}
 
 button,
 input {
