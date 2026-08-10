@@ -138,8 +138,8 @@ button:disabled {
 }
 
 .loading-logo {
-  width: 105px;
-  height: 105px;
+  width: 145px;
+  height: 145px;
   object-fit: contain;
   border-radius: 20px;
   filter: drop-shadow(0 12px 30px rgba(139, 92, 246, 0.22));
@@ -225,12 +225,13 @@ header {
 }
 
 .logo {
-  width: 54px;
-  height: 54px;
+  width: 112px;
+  height: 68px;
 
-  object-fit: contain;
-
-  border-radius: 8px;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 10px;
+  filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.22));
 }
 
 
@@ -309,7 +310,8 @@ header {
   gap: 9px;
 }
 
-.login-button {
+.login-button,
+.roblox-login-action {
   display: flex;
   align-items: center;
 
@@ -321,6 +323,27 @@ header {
   height: 22px;
 
   object-fit: contain;
+}
+
+.login-button,
+.roblox-login-action {
+  background: #000 !important;
+  color: #fff !important;
+  border: 1px solid #333 !important;
+}
+
+.login-button:hover,
+.roblox-login-action:hover {
+  background: #111 !important;
+  color: #fff !important;
+}
+
+.login-button img {
+  filter: brightness(0) invert(1);
+}
+
+.login-modal-box .roblox-login-action {
+  justify-content: center;
 }
 
 .account-box {
